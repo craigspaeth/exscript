@@ -1,4 +1,4 @@
-defmodule Exscript.Mixfile do
+defmodule ExScript.Mixfile do
   use Mix.Project
 
   def package do
@@ -25,7 +25,8 @@ defmodule Exscript.Mixfile do
 
   def deps do
     [
-      {:poison, "~> 2.2"}
+      {:poison, "~> 2.2"},
+      {:mix_test_watch, "~> 0.3", only: [:dev, :test], runtime: false}
     ]
   end
 end

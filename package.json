@@ -6,11 +6,13 @@
   "dependencies": {
     "acorn": "^5.1.1",
     "escodegen": "^1.8.1",
-    "estree-formal": "^1.1.5"
+    "estree-formal": "^1.1.5",
+    "prettier-standard": "^6.0.0"
   },
   "devDependencies": {},
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "format": "node_modules/.bin/prettier-standard lib/exscript/lib.js"
   },
   "author": "",
   "license": "ISC"
