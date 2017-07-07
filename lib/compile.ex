@@ -6,16 +6,20 @@ defmodule Compiler do
 
   defp to_js_ast(ast) do
     {token, metadata, args} = ast
-    node = case token do
-      :+ ->
+    node = cond do
+      token == :+ or token == :* ->
         [left, right] = args
         %{
           type: "BinaryExpression",
-          operator: "+",
+          operator: token,
           left: %{type: "Literal", value: left},
-          right: %{type: "Literal", value: right}
+          right: cond do
+            is_integer right -> %{type: "Literal", value: right} 
+            is_tuple right -> to_js_ast right
+            true -> raise "Uknown right-hand expression #{right}"
+          end
         }
-      _ ->
+      true ->
         raise "Unknown token #{token}"
     end
     node
