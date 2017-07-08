@@ -81,8 +81,40 @@ defmodule ExScript.CompileTest do
     assert js == "null"
   end
 
-  @tag :skip
   test "compiles modules" do
+    ast = Code.string_to_quoted! """
+    defmodule Hello.World do
+      def hi, do: "hi"
+      def bai, do: 1 + 1
+    end
+    """
+    js = ExScript.Compile.to_js! ast
+    assert js <> "\n" == """
+    {
+        hi: () => 'hi',
+        bai: () => 1 + 1
+    }
+    """
+  end
+
+  test "compiles complex modules" do
+    ast = Code.string_to_quoted! """
+    defmodule Hello.World do
+      def hi do
+        a = 1
+        a
+      end
+    end
+    """
+    js = ExScript.Compile.to_js! ast
+    assert js <> "\n" == """
+    {
+        hi: () => {
+            const a = 1
+            return a
+        }
+    }
+    """
   end
 
   @tag :skip

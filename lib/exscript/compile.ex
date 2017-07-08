@@ -54,6 +54,8 @@ defmodule ExScript.Compile do
         transform_block_statement ast
       is_atom(token) and args == nil ->
         transform_return_statement ast
+      token == :defmodule ->
+        transform_module ast
       true ->
         raise "Unknown token #{token}"
     end
@@ -139,6 +141,29 @@ defmodule ExScript.Compile do
           type: "Property",
           key: %{type: "Identifier", name: key},
           value: %{type: "Literal", value: val}
+        }
+      end
+    }
+  end
+
+  def transform_module({_, _, args}) do
+    [{_, _, namespaces} | [body]] = args
+    [{_, {_, _, methods}} | v] = body
+    namespace = Enum.join namespaces, ""
+    %{
+      type: "ObjectExpression",
+      properties: for method <- methods do
+        {_, _, body} = method
+        [{method_name, _, _}, [{_, return_val}]] = body        
+        %{
+          type: "Property",
+          key: %{type: "Identifier", name: method_name},
+          value: %{
+            type: "ArrowFunctionExpression",
+            expression: true,
+            params: [],
+            body: to_js_ast!(return_val)
+          }
         }
       end
     }
