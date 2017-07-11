@@ -1,6 +1,8 @@
 defmodule ExScript.Compile do
 
-  def compile!(ast) do
+  def compile!(code) do
+    Code.compile_string code
+    ast = Code.string_to_quoted! code
     File.read!("lib/exscript/lib.js") <> to_js! ast
   end
 
@@ -63,6 +65,8 @@ defmodule ExScript.Compile do
         transform_cond ast
       token == :case ->
         transform_case ast
+      token == :|> ->
+        transform_pipeline ast
       token == :%{} ->
         transform_map ast
       token == := ->
@@ -101,16 +105,13 @@ defmodule ExScript.Compile do
 
   def transform_identifying_function({token, _, args}) do
     %{
-      type: "ExpressionStatement",
-      expression: %{
-        type: "CallExpression",
-        callee: %{
-          type: "MemberExpression",
-          object: %{type: "Identifier", name: "ExScript"},
-          property: %{type: "Identifier", name: token}
-        },
-        arguments: Enum.map(args, &transform!(&1))
-      }
+      type: "CallExpression",
+      callee: %{
+        type: "MemberExpression",
+        object: %{type: "Identifier", name: "ExScript"},
+        property: %{type: "Identifier", name: token}
+      },
+      arguments: Enum.map(args, &transform!(&1))
     }
   end
 
@@ -128,14 +129,38 @@ defmodule ExScript.Compile do
   end
 
   defp transform_assignment({_, _, args}) do
-    [{var_name, _, _}, val]= args
+    [vars, val]= args
+    id = if is_list(vars) do
+      {var_name, _, _} = Enum.at vars, 0
+      %{
+        type: "ArrayPattern",
+        elements: if var_name == :| do
+          {var_name, _, body} = Enum.at vars, 0
+          [{head_var_name, _, _}, {tail_var_name, _, _}] = body
+          [
+            %{type: "Identifier", name: head_var_name},
+            %{
+              type: "RestElement",
+              argument: %{type: "Identifier", name: tail_var_name}
+            }
+          ]
+        else
+          for {var_name, _, _} <- vars do
+            %{type: "Identifier", name: var_name}
+          end
+        end
+      }
+    else
+      {var_name, _, _} = vars
+      %{type: "Identifier", name: var_name}
+    end
     %{
       type: "VariableDeclaration",
       kind: "const",
       declarations: [
         %{
           type: "VariableDeclarator",
-          id: %{type: "Identifier", name: var_name},
+          id: id,
           init: transform! val
         }
       ]
@@ -240,8 +265,7 @@ defmodule ExScript.Compile do
     }
   end
 
-  defp transform_cond(ast) do
-    {_, _, [[{_, clauses}]]} = ast
+  defp transform_cond({_, _, [[{_, clauses}]]}) do
     if_elses = for {_, _, [[condition], body]} <- clauses do
       [
         transform!(condition),
@@ -265,8 +289,7 @@ defmodule ExScript.Compile do
     }
   end
 
-  defp transform_case(ast) do
-    {_, _, [val, [{_, clauses}]]} = ast
+  defp transform_case({_, _, [val, [{_, clauses}]]}) do
     if_elses = for {_, _, [[compare_val], body]} = clause <- clauses do
       is_any = if is_tuple compare_val do
         compare_val
@@ -298,6 +321,11 @@ defmodule ExScript.Compile do
         }
       }
     }
+  end
+
+  defp transform_pipeline({_, _, [arg | [func_call]]} = ast) do
+    fn_call_ast = transform! func_call
+    %{fn_call_ast | arguments: [transform!(arg)] ++ fn_call_ast.arguments}
   end
 
   defp nested_if_statement(if_elses, index \\ 0) do

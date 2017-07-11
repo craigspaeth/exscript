@@ -15,38 +15,47 @@ ExScript.Modules.IO = {
 }
 
 // Global type checking functions in Elixir
-ExScript.is_atom = val => typeof val === 'boolean'
-ExScript.is_binary = val => typeof val === 'boolean'
-ExScript.is_bitstring = val => typeof val === 'boolean'
+ExScript.is_atom = val => typeof val === 'symbol'
+ExScript.is_binary = val => typeof val === 'string'
+ExScript.is_bitstring = val => typeof val === 'string'
 ExScript.is_boolean = val => typeof val === 'boolean'
-ExScript.is_float = val => typeof val === 'boolean'
-ExScript.is_function = val => typeof val === 'boolean'
-ExScript.is_integer = val => typeof val === 'boolean'
-ExScript.is_list = val => typeof val === 'boolean'
-ExScript.is_map = val => typeof val === 'boolean'
-ExScript.is_nil = val => typeof val === 'boolean'
-ExScript.is_number = val => typeof val === 'boolean'
+ExScript.is_float = val => typeof val === 'number' && parseInt(val) === val
+ExScript.is_function = val => typeof val === 'function'
+ExScript.is_integer = val => typeof val === 'number' && !ExScript.is_float(val)
+ExScript.is_list = val => val instanceof Array
+ExScript.is_map = val => typeof val === 'object'
+ExScript.is_nil = val => typeof val === null
+ExScript.is_number = val => typeof val === 'number'
+// Non-basic types
 ExScript.is_pid = val => typeof val === 'boolean'
 ExScript.is_port = val => typeof val === 'boolean'
 ExScript.is_reference = val => typeof val === 'boolean'
 ExScript.is_tuple = val => typeof val === 'boolean'
+
+
+// Standard library
+
+// Enum
+ExScript.Modules.Enum = {}
+ExScript.Modules.Enum.map = (e, ittr) => Array.prototype.map.call(e, ittr)
+ExScript.Modules.Enum.join = (e, char) => Array.prototype.join.call(e, char)
+
+// List
+ExScript.Modules.List = {}
+ExScript.Modules.List.first = (list) => list[0]
 ;
 ExScript.Modules.Foo = {
-    foo: str => {
-        const a = (() => {
-            if (str === 'a') {
-                return 'hi';
-            } else if (str === 'b') {
-                return 'bai';
-            } else if (str === 'c') {
-                return 'meh';
-            } else if (true) {
-                return fail;
+    to_html: (view, model, el) => {
+        return (() => {
+            if (ExScript.is_bitstring(el)) {
+                return el;
+            } else if (ExScript.is_list(ExScript.Modules.List.first(el))) {
+                return ExScript.Modules.Enum.join(ExScript.Modules.Enum.map(el, child => {
+                    return ExScript.Modules.Foo.to_html(view, model, child);
+                }), '');
             }
         })();
-        return a + ' moo';
     }
-};
-ExScript.Modules.Foo.foo('a');</script>
+}</script>
     </head>
   </html>

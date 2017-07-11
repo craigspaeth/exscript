@@ -3,6 +3,21 @@ defmodule ExScript.CompileTest do
 
   use ExUnit.Case
 
+  test "surfaces elixir compile errors" do
+    try do
+      ExScript.Compile.compile! """
+        defmoo Foo do
+        end
+      """
+    rescue
+      err -> assert err == %CompileError{
+        description: "undefined function defmoo/2",
+        file: "nofile",
+        line: 1
+      }
+    end
+  end
+
   test "compiles basic arithmetic" do
     js = ExScript.Compile.to_js! quote do: 1 + 2 * 3 / 4 - 5
     assert js == "1 + 2 * 3 / 4 - 5"
@@ -10,9 +25,9 @@ defmodule ExScript.CompileTest do
 
   test "compiles identitfying functions" do
     js = ExScript.Compile.to_js! quote do: is_boolean(true)
-    assert js == "ExScript.is_boolean(true);"
+    assert js == "ExScript.is_boolean(true)"
     js = ExScript.Compile.to_js! quote do: is_array(true)
-    assert js == "ExScript.is_array(true);"
+    assert js == "ExScript.is_array(true)"
   end
 
   test "compiles assignment" do
@@ -251,6 +266,41 @@ defmodule ExScript.CompileTest do
             return 'b';
         }
     })();
+    """
+  end
+
+  test "compiles pipeline operator" do
+    js = ExScript.Compile.to_js! quote do: "a" |> IO.puts |> IO.puts
+    assert js <> "\n" == """
+    ExScript.Modules.IO.puts(ExScript.Modules.IO.puts('a'))
+    """
+  end
+
+  test "compiles pipeline operator with extra args" do
+    js = ExScript.Compile.to_js! quote do: "a,b" |> String.split(",")
+    assert js <> "\n" == """
+    ExScript.Modules.String.split('a,b', ',')
+    """
+  end
+
+  test "compiles list pattern matching" do
+    js = ExScript.Compile.to_js! quote do: [a, b] = [1, 2]
+    assert js <> "\n" == """
+    const [a, b] = [
+        1,
+        2
+    ];
+    """
+  end
+
+  test "compiles head tail pattern matching" do
+    js = ExScript.Compile.to_js! quote do: [a | b] = [1, 2, 3]
+    assert js <> "\n" == """
+    const [a, ...b] = [
+        1,
+        2,
+        3
+    ];
     """
   end
 

@@ -4,19 +4,19 @@ defmodule Mix.Tasks.Example do
   use Mix.Task
 
   def run(_) do
-    js = ExScript.Compile.compile! Code.string_to_quoted! """
+    js = ExScript.Compile.compile! """
     defmodule Foo do
-      def foo(str) do
-        a = case str do
-          "a" -> "hi"
-          "b" -> "bai"
-          "c" -> "meh"
-          _ -> fail
+      defp to_html(view, model, el) do
+        cond do
+          is_bitstring el ->
+            el
+          is_list List.first(el) ->
+            el
+            |> Enum.map(fn (child) -> Foo.to_html view, model, child end)
+            |> Enum.join("")
         end
-        a <> " moo"
       end
     end
-    Foo.foo("a")
     """
     File.write "./example.html", """
       <html>
