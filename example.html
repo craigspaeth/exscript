@@ -32,13 +32,21 @@ ExScript.is_reference = val => typeof val === 'boolean'
 ExScript.is_tuple = val => typeof val === 'boolean'
 ;
 ExScript.Modules.Foo = {
-    foo: () => {
-        return 'Foo';
-    },
-    bar: str => {
-        return 'Bar ' + str;
+    foo: str => {
+        const a = (() => {
+            if (str === 'a') {
+                return 'hi';
+            } else if (str === 'b') {
+                return 'bai';
+            } else if (str === 'c') {
+                return 'meh';
+            } else if (true) {
+                return fail;
+            }
+        })();
+        return a + ' moo';
     }
 };
-ExScript.Modules.IO.inspect(ExScript.Modules.Foo.bar('baz'));</script>
+ExScript.Modules.Foo.foo('a');</script>
     </head>
   </html>

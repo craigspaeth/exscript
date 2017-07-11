@@ -16,7 +16,7 @@ defmodule ExScript.Compile do
   defp to_program_ast!(ast) do
     if is_tuple(ast) and Enum.at(Tuple.to_list(ast), 0) == :__block__ do
       {_, _, body} = ast
-      body = Enum.map body, fn (ast) -> 
+      body = Enum.map body, fn (ast) ->
         %{type: "ExpressionStatement", expression: transform!(ast)}
       end
       %{type: "Program", body: body}
@@ -61,6 +61,8 @@ defmodule ExScript.Compile do
         transform_if ast
       token == :cond ->
         transform_cond ast
+      token == :case ->
+        transform_case ast
       token == :%{} ->
         transform_map ast
       token == := ->
@@ -115,23 +117,13 @@ defmodule ExScript.Compile do
   defp transform_anonymous_function({_, _, args}) do
     fn_args = for {_, _, fn_args} <- args, do: fn_args
     [return_val | fn_args] = fn_args |> List.flatten |> Enum.reverse
-    js_function_ast fn_args, return_val
+    arrow_function fn_args, return_val
   end
 
   defp transform_block_statement({_, _, args}) do
     %{
       type: "BlockStatement",
       body: Enum.map(args, &transform!(&1))
-    }
-  end
-
-  defp transform_return_statement({token, _, _}) do
-    %{
-      type: "ReturnStatement",
-      argument: %{
-        type: "Identifier",
-        name: token
-      }
     }
   end
 
@@ -197,7 +189,7 @@ defmodule ExScript.Compile do
             shorthand: false,
             computed: false,
             key: %{type: "Identifier", name: method_name},
-            value: js_function_ast(args, return_val)
+            value: arrow_function(args, return_val)
           }
         end
       }
@@ -250,37 +242,103 @@ defmodule ExScript.Compile do
 
   defp transform_cond(ast) do
     {_, _, [[{_, clauses}]]} = ast
-    for {_, _, [condition, body]} <- clauses do
-      transform! ast
+    if_elses = for {_, _, [[condition], body]} <- clauses do
+      [
+        transform!(condition),
+        %{
+          type: "BlockStatement",
+          body: return_block(body)
+        }
+      ]
     end
     %{
+      type: "CallExpression",
+      arguments: [],
+      callee: %{
+        type: "ArrowFunctionExpression",
+        params: [],
+        body: %{
+          type: "BlockStatement",
+          body: [nested_if_statement(if_elses)]
+        }
+      }
     }
   end
 
-  defp js_function_ast(args, return_val) do
-    body = cond do
-      is_tuple return_val ->
-        {key, _, body} = return_val
+  defp transform_case(ast) do
+    {_, _, [val, [{_, clauses}]]} = ast
+    if_elses = for {_, _, [[compare_val], body]} = clause <- clauses do
+      is_any = if is_tuple compare_val do
+        compare_val
+        |> Tuple.to_list
+        |> List.first == :_
+      end
+      [
+        (if is_any, do: %{type: "Literal", value: true}, else: %{
+          type: "BinaryExpression",
+          operator: "===",
+          left: transform!(val),
+          right: transform!(compare_val)
+        }),
+        %{
+          type: "BlockStatement",
+          body: return_block(body)
+        }
+      ]
+    end
+    %{
+      type: "CallExpression",
+      arguments: [],
+      callee: %{
+        type: "ArrowFunctionExpression",
+        params: [],
+        body: %{
+          type: "BlockStatement",
+          body: [nested_if_statement(if_elses)]
+        }
+      }
+    }
+  end
+
+  defp nested_if_statement(if_elses, index \\ 0) do
+    if index >= length if_elses do
+      nil
+    else
+      [test, consequent] = Enum.at if_elses, index
+      %{
+        type: "IfStatement",
+        test: test,
+        consequent: consequent,
+        alternate: nested_if_statement(if_elses, index + 1)
+      }
+    end
+  end
+
+  defp arrow_function(args, return_val) do
+    args = args || []
+    %{
+      type: "ArrowFunctionExpression",
+      params: Enum.map(args, fn ({var_name, _, _}) ->
+        %{type: "Identifier", name: var_name}
+      end),
+      body: %{type: "BlockStatement", body: return_block(return_val)}
+    }
+  end
+
+  defp return_block(ast) do
+    cond do
+      is_tuple ast ->
+        {key, _, body} = ast
         case key do
           :__block__ ->
             [return_line | fn_lines] = Enum.reverse body
             Enum.map(fn_lines, &transform!(&1)) ++
             [%{type: "ReturnStatement", argument: transform!(return_line)}]
           _ ->
-            [%{type: "ReturnStatement", argument: transform!(return_val)}]            
+            [%{type: "ReturnStatement", argument: transform!(ast)}]
         end
       true ->
-        [%{type: "ReturnStatement", argument: transform!(return_val)}]
+        [%{type: "ReturnStatement", argument: transform!(ast)}]
     end
-    args = args || []
-    %{
-      type: "ArrowFunctionExpression",
-      generator: false,
-      expression: false,
-      params: Enum.map(args, fn ({var_name, _, _}) ->
-        %{type: "Identifier", name: var_name}
-      end),
-      body: %{type: "BlockStatement", body: body}
-    }
   end
 end

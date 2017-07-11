@@ -178,19 +178,80 @@ defmodule ExScript.CompileTest do
     end
     """
     js = ExScript.Compile.to_js! ast
-    assert js == ""
+    assert js <> "\n" == """
+    const val = (() => {
+        if (1 + 1 === 2) {
+            return 'hai';
+        } else if (false) {
+            return 'bai';
+        }
+    })();
+    """
   end
 
-  @tag :skip
-  test "compiles case expressions" do
+  test "compiles long bodied cond expressions" do
     ast = Code.string_to_quoted! """
-    case [1, 2] do
-      [1, _] -> "hai"
-      false -> bai
+    val = cond do
+      1 + 1 == 2 ->
+        a = "foo"
+        b = "bar"
+        a <> b
+      false -> "bai"
     end
     """
     js = ExScript.Compile.to_js! ast
-    assert js == ""
+    assert js <> "\n" == """
+    const val = (() => {
+        if (1 + 1 === 2) {
+            const b = 'bar';
+            const a = 'foo';
+            return a + b;
+        } else if (false) {
+            return 'bai';
+        }
+    })();
+    """
+  end
+
+  test "compiles long cond expressions" do
+    ast = Code.string_to_quoted! """
+    val = cond do
+      0 -> "a"
+      1 -> "b"
+      3 -> "c"
+    end
+    """
+    js = ExScript.Compile.to_js! ast
+    assert js <> "\n" == """
+    const val = (() => {
+        if (0) {
+            return 'a';
+        } else if (1) {
+            return 'b';
+        } else if (3) {
+            return 'c';
+        }
+    })();
+    """
+  end
+
+  test "compiles case expressions" do
+    ast = Code.string_to_quoted! """
+    val = case "a" do
+      "a" -> "a"
+      _ -> "b"
+    end
+    """
+    js = ExScript.Compile.to_js! ast
+    assert js <> "\n" == """
+    const val = (() => {
+        if ('a' === 'a') {
+            return 'a';
+        } else if (true) {
+            return 'b';
+        }
+    })();
+    """
   end
 
   @tag :skip
