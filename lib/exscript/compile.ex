@@ -7,16 +7,33 @@ defmodule ExScript.Compile do
   def to_js!(ast) do
     code =
       "process.stdout.write(" <>
-      "require('escodegen').generate(#{Poison.encode! to_js_ast! ast})" <>
+      "require('escodegen').generate(#{Poison.encode! to_program_ast! ast})" <>
       ")"
     {result, _} = System.cmd "node", ["-e", code]
     result
   end
 
-  defp to_js_ast!(ast) do
+  defp to_program_ast!(ast) do
+    if is_tuple(ast) and Enum.at(Tuple.to_list(ast), 0) == :__block__ do
+      {_, _, body} = ast
+      body = Enum.map body, fn (ast) -> 
+        %{type: "ExpressionStatement", expression: transform!(ast)}
+      end
+      %{type: "Program", body: body}
+    else
+      transform! ast
+    end
+  end
+
+  defp transform!(ast) do
     cond do
       is_tuple ast ->
-        transform_non_literal! ast
+        {token, _, _} = ast
+        if is_tuple token do
+          transform_function_call! ast
+        else
+          transform_non_literal! ast
+        end
       is_integer(ast) or is_boolean(ast) or is_binary(ast) or is_nil(ast) ->
         %{type: "Literal", value: ast}
       is_atom ast ->
@@ -31,7 +48,7 @@ defmodule ExScript.Compile do
       is_list ast ->
         %{
           type: "ArrayExpression",
-          elements: Enum.map(ast, &to_js_ast!(&1))
+          elements: Enum.map(ast, &transform!(&1))
         }
       true ->
         raise "Unknown AST #{ast}"
@@ -40,11 +57,15 @@ defmodule ExScript.Compile do
 
   defp transform_non_literal!({token, _, args} = ast) do
     cond do
+      token == :if ->
+        transform_if ast
+      token == :cond ->
+        transform_cond ast
       token == :%{} ->
         transform_map ast
       token == := ->
         transform_assignment ast
-      token in [:+, :*, :/, :-, :==] ->
+      token in [:+, :*, :/, :-, :==, :<>] ->
         transform_binary_expression ast
       String.starts_with? to_string(token), "is_" ->
         transform_identifying_function ast
@@ -53,9 +74,11 @@ defmodule ExScript.Compile do
       token == :__block__ ->
         transform_block_statement ast
       is_atom(token) and args == nil ->
-        transform_return_statement ast
+        %{type: "Identifier", name: token}
       token == :defmodule ->
         transform_module ast
+      token == :++ ->
+        transform_array_concat_operator ast
       true ->
         raise "Unknown token #{token}"
     end
@@ -64,9 +87,13 @@ defmodule ExScript.Compile do
   defp transform_binary_expression({token, _, [left, right]}) do
     %{
       type: "BinaryExpression",
-      operator: (if token == :==, do: "===", else: token),
-      left: to_js_ast!(left),
-      right: to_js_ast!(right)
+      operator: case token do
+        :== -> "==="
+        :<> -> "+"
+        _ -> token
+      end,
+      left: transform!(left),
+      right: transform!(right)
     }
   end
 
@@ -80,7 +107,7 @@ defmodule ExScript.Compile do
           object: %{type: "Identifier", name: "ExScript"},
           property: %{type: "Identifier", name: token}
         },
-        arguments: Enum.map(args, &to_js_ast!(&1))
+        arguments: Enum.map(args, &transform!(&1))
       }
     }
   end
@@ -88,23 +115,13 @@ defmodule ExScript.Compile do
   defp transform_anonymous_function({_, _, args}) do
     fn_args = for {_, _, fn_args} <- args, do: fn_args
     [return_val | fn_args] = fn_args |> List.flatten |> Enum.reverse
-    %{
-      type: "ExpressionStatement",
-      expression: %{
-        type: "ArrowFunctionExpression",
-        expression: true,
-        params: Enum.map(fn_args, fn ({var_name, _, _}) ->
-          %{type: "Identifier", name: var_name}
-        end),
-        body: to_js_ast!(return_val)
-      }
-    }
+    js_function_ast fn_args, return_val
   end
 
   defp transform_block_statement({_, _, args}) do
     %{
       type: "BlockStatement",
-      body: Enum.map(args, &to_js_ast!(&1))
+      body: Enum.map(args, &transform!(&1))
     }
   end
 
@@ -127,7 +144,7 @@ defmodule ExScript.Compile do
         %{
           type: "VariableDeclarator",
           id: %{type: "Identifier", name: var_name},
-          init: %{type: "Literal", value: val}
+          init: transform! val
         }
       ]
     }
@@ -148,24 +165,122 @@ defmodule ExScript.Compile do
 
   def transform_module({_, _, args}) do
     [{_, _, namespaces} | [body]] = args
-    [{_, {_, _, methods}} | v] = body
+    [{_, method_or_methods} | _] = body
+    {key, _, _} = method_or_methods
+    methods = if key == :__block__ do
+      {_, _, methods} = method_or_methods
+      methods
+    else
+      [method_or_methods]
+    end
     namespace = Enum.join namespaces, ""
     %{
-      type: "ObjectExpression",
-      properties: for method <- methods do
-        {_, _, body} = method
-        [{method_name, _, _}, [{_, return_val}]] = body        
-        %{
-          type: "Property",
-          key: %{type: "Identifier", name: method_name},
-          value: %{
-            type: "ArrowFunctionExpression",
-            expression: true,
-            params: [],
-            body: to_js_ast!(return_val)
+      type: "AssignmentExpression",
+      operator: "=",
+      left: %{
+        type: "MemberExpression",
+        object: %{
+          type: "MemberExpression",
+          object: %{type: "Identifier", name: "ExScript"},
+          property: %{type: "Identifier", name: "Modules"}
+        },
+        property: %{type: "Identifier", name: namespace}
+      },
+      right: %{
+        type: "ObjectExpression",
+        properties: for method <- methods do
+          {_, _, body} = method
+          [{method_name, _, args}, [{_, return_val}]] = body
+          %{
+            type: "Property",
+            method: false,
+            shorthand: false,
+            computed: false,
+            key: %{type: "Identifier", name: method_name},
+            value: js_function_ast(args, return_val)
           }
-        }
-      end
+        end
+      }
+    }
+  end
+
+  defp transform_array_concat_operator({_, _, args}) do
+    [left_arr, right_arr] = args
+    %{
+      type: "CallExpression",
+      callee: %{
+        type: "MemberExpression",
+        property: %{type: "Identifer", name: "concat"},
+        object: transform!(left_arr)
+      },
+      arguments: [transform!(right_arr)]
+    }
+  end
+
+  def transform_function_call!(ast) do
+    {{_, _, [{_, _, namespaces}, property]}, _, args} = ast
+    namespace = Enum.join namespaces, ""
+    %{
+      type: "CallExpression",
+      arguments: Enum.map(args, &transform!(&1)),
+      callee: %{
+        type: "MemberExpression",
+        object: %{
+          type: "MemberExpression",
+          object: %{
+            type: "MemberExpression",
+            object: %{type: "Identifier", name: "ExScript"},
+            property: %{type: "Identifier", name: "Modules"}
+          },
+          property: %{type: "Identifier", name: namespace}
+        },
+        property: %{type: "Identifier", name: property}
+      }
+    }
+  end
+
+  defp transform_if({_, _, [test, [{_, consequent}, {_, alternate}]]}) do
+    %{
+      type: "ConditionalExpression",
+      test: transform!(test),
+      consequent: transform!(consequent),
+      alternate: transform!(alternate)
+    }
+  end
+
+  defp transform_cond(ast) do
+    {_, _, [[{_, clauses}]]} = ast
+    for {_, _, [condition, body]} <- clauses do
+      transform! ast
+    end
+    %{
+    }
+  end
+
+  defp js_function_ast(args, return_val) do
+    body = cond do
+      is_tuple return_val ->
+        {key, _, body} = return_val
+        case key do
+          :__block__ ->
+            [return_line | fn_lines] = Enum.reverse body
+            Enum.map(fn_lines, &transform!(&1)) ++
+            [%{type: "ReturnStatement", argument: transform!(return_line)}]
+          _ ->
+            [%{type: "ReturnStatement", argument: transform!(return_val)}]            
+        end
+      true ->
+        [%{type: "ReturnStatement", argument: transform!(return_val)}]
+    end
+    args = args || []
+    %{
+      type: "ArrowFunctionExpression",
+      generator: false,
+      expression: false,
+      params: Enum.map(args, fn ({var_name, _, _}) ->
+        %{type: "Identifier", name: var_name}
+      end),
+      body: %{type: "BlockStatement", body: body}
     }
   end
 end
