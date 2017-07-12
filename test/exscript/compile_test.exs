@@ -110,10 +110,10 @@ defmodule ExScript.CompileTest do
     js = ExScript.Compile.to_js! ast
     assert js <> "\n" == """
     ExScript.Modules.HelloWorld = {
-        hi: () => {
+        hi() {
             return 'hi';
         },
-        bai: () => {
+        bai() {
             return 1 + 1;
         }
     }
@@ -132,7 +132,7 @@ defmodule ExScript.CompileTest do
     js = ExScript.Compile.to_js! ast
     assert js <> "\n" == """
     ExScript.Modules.HelloWorld = {
-        hi: () => {
+        hi() {
             const a = 1;
             return a;
         }
@@ -140,7 +140,7 @@ defmodule ExScript.CompileTest do
     """
   end
 
-  test "compiles module function calls" do
+  test "compiles external module function calls" do
     ast = Code.string_to_quoted! """
     defmodule Hello do
       def world(str), do: "World" <> str
@@ -154,15 +154,73 @@ defmodule ExScript.CompileTest do
     js = ExScript.Compile.to_js! ast
     assert js <> "\n" == """
     ExScript.Modules.Hello = {
-        world: str => {
+        world(str) {
             return 'World' + str;
         }
     };
     ExScript.Modules.Main = {
-        init: () => {
+        init() {
             return ExScript.Modules.Hello.world('Earth');
         }
     };
+    """
+  end
+
+  test "compiles property function calls" do
+    ast = Code.string_to_quoted! """
+    defmodule Hello do
+      def world(mod) do
+        mod.fun()
+      end
+    end
+    """
+    js = ExScript.Compile.to_js! ast
+    assert js <> "\n" == """
+    ExScript.Modules.Hello = {
+        world(mod) {
+            return mod.fun();
+        }
+    }
+    """
+  end
+
+  test "compiles dynamic property access" do
+    ast = Code.string_to_quoted! """
+    fn () ->
+      foo = %{foo: "bar"}
+      key = "bar"
+      foo[key]
+    end
+    """
+    js = ExScript.Compile.to_js! ast
+    assert js <> "\n" == """
+    () => {
+        const key = 'bar';
+        const foo = { foo: 'bar' };
+        return foo[key];
+    }
+    """
+  end
+
+  test "compiles dynamic property access with function calls" do
+    ast = Code.string_to_quoted! """
+    defmodule Hello do
+      def bar, do: "prop"
+      def foo(a) do
+        a.foo[bar()].baz "bam"
+      end
+    end
+    """
+    js = ExScript.Compile.to_js! ast
+    assert js <> "\n" == """
+    ExScript.Modules.Hello = {
+        bar() {
+            return 'prop';
+        },
+        foo(a) {
+            return a.foo[this.bar()].baz('bam');
+        }
+    }
     """
   end
 
@@ -301,6 +359,26 @@ defmodule ExScript.CompileTest do
         2,
         3
     ];
+    """
+  end
+
+  test "compiles local functions" do
+    ast = Code.string_to_quoted! """
+    defmodule Hello.World do
+      def hi, do: bai()
+      def bai, do: "bai"
+    end
+    """
+    js = ExScript.Compile.to_js! ast
+    assert js <> "\n" == """
+    ExScript.Modules.HelloWorld = {
+        hi() {
+            return this.bai();
+        },
+        bai() {
+            return 'bai';
+        }
+    }
     """
   end
 

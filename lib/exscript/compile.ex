@@ -31,10 +31,15 @@ defmodule ExScript.Compile do
     cond do
       is_tuple ast ->
         {token, _, _} = ast
-        if is_tuple token do
-          transform_function_call! ast
-        else
-          transform_non_literal! ast
+        cond do
+          is_tuple token ->
+            {token, _, _} = token
+            case token do
+              :. -> transform_property_access ast
+              true -> transform_external_function_call ast
+            end
+          true ->
+            transform_non_literal! ast
         end
       is_integer(ast) or is_boolean(ast) or is_binary(ast) or is_nil(ast) ->
         %{type: "Literal", value: ast}
@@ -79,12 +84,14 @@ defmodule ExScript.Compile do
         transform_anonymous_function ast
       token == :__block__ ->
         transform_block_statement ast
-      is_atom(token) and args == nil ->
-        %{type: "Identifier", name: token}
       token == :defmodule ->
         transform_module ast
       token == :++ ->
         transform_array_concat_operator ast
+      args == nil ->
+        %{type: "Identifier", name: token}
+      is_list(args) ->
+        transform_local_function_call ast
       true ->
         raise "Unknown token #{token}"
     end
@@ -118,7 +125,7 @@ defmodule ExScript.Compile do
   defp transform_anonymous_function({_, _, args}) do
     fn_args = for {_, _, fn_args} <- args, do: fn_args
     [return_val | fn_args] = fn_args |> List.flatten |> Enum.reverse
-    arrow_function fn_args, return_val
+    function_expression :arrow, fn_args, return_val
   end
 
   defp transform_block_statement({_, _, args}) do
@@ -129,7 +136,7 @@ defmodule ExScript.Compile do
   end
 
   defp transform_assignment({_, _, args}) do
-    [vars, val]= args
+    [vars, val] = args
     id = if is_list(vars) do
       {var_name, _, _} = Enum.at vars, 0
       %{
@@ -210,11 +217,11 @@ defmodule ExScript.Compile do
           [{method_name, _, args}, [{_, return_val}]] = body
           %{
             type: "Property",
-            method: false,
+            method: true,
             shorthand: false,
             computed: false,
             key: %{type: "Identifier", name: method_name},
-            value: arrow_function(args, return_val)
+            value: function_expression(:obj, args, return_val)
           }
         end
       }
@@ -234,8 +241,9 @@ defmodule ExScript.Compile do
     }
   end
 
-  def transform_function_call!(ast) do
-    {{_, _, [{_, _, namespaces}, property]}, _, args} = ast
+  defp transform_external_function_call({
+    {_, _, [{_, _, namespaces}, property]}, _, args
+  }) when not is_nil namespaces do
     namespace = Enum.join namespaces, ""
     %{
       type: "CallExpression",
@@ -252,6 +260,86 @@ defmodule ExScript.Compile do
           property: %{type: "Identifier", name: namespace}
         },
         property: %{type: "Identifier", name: property}
+      }
+    }
+  end
+
+  defp transform_external_function_call({
+    {_, _, [{callee_name, _, namespaces}, func_name]}, _, args
+  } = ast) when is_nil namespaces do
+    %{
+      type: "CallExpression",
+      arguments: Enum.map(args, &transform!(&1)),
+      callee: %{
+        type: "MemberExpression",
+        arguments: [],
+        object: %{
+          type: "Identifier",
+          name: callee_name
+        },
+        property: %{
+          type: "Identifier",
+          name: func_name
+        }
+      }
+    }
+  end
+
+  defp transform_property_access({
+    {_, _, [_, action]}, _, [owner, prop]
+  } = ast) when action == :get do
+    %{
+      type: "MemberExpression",
+      computed: true,
+      object: transform!(owner),
+      property: transform!(prop)
+    }
+  end
+
+  defp transform_property_access({
+    {_, _, [parent_ast, k]}, _, args
+  } = ast) do
+    if is_list(args) and length(args) > 0 do
+      %{
+        type: "CallExpression",
+        arguments: Enum.map(args, &transform!(&1)),
+        callee: %{
+          type: "MemberExpression",
+          object: transform!(parent_ast),
+          property: %{
+            type: "Identifier",
+            name: "#{k}"
+          },
+          arguments: []
+        }
+      }
+    else
+      %{
+        type: "MemberExpression",
+        computed: false,
+        object: transform!(parent_ast),
+        property: %{
+          type: "Identifier",
+          name: "#{k}"
+        }
+      }
+    end
+  end
+
+  defp transform_local_function_call({func_name, _, args}) do
+    %{
+      type: "CallExpression",
+      arguments: Enum.map(args, &transform!(&1)),
+      callee: %{
+        type: "MemberExpression",
+        object: %{
+          type: "ThisExpression",
+        },
+        property: %{
+          type: "Identifier",
+          name: func_name
+        },
+        arguments: []
       }
     }
   end
@@ -342,10 +430,13 @@ defmodule ExScript.Compile do
     end
   end
 
-  defp arrow_function(args, return_val) do
+  defp function_expression(type, args, return_val) do
     args = args || []
     %{
-      type: "ArrowFunctionExpression",
+      type: case type do
+        :arrow -> "ArrowFunctionExpression"
+        :obj -> "FunctionExpression"
+      end,
       params: Enum.map(args, fn ({var_name, _, _}) ->
         %{type: "Identifier", name: var_name}
       end),
