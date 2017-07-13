@@ -170,7 +170,7 @@ defmodule ExScript.CompileTest do
     ast = Code.string_to_quoted! """
     defmodule Hello do
       def world(mod) do
-        mod.fun()
+        mod.fun("a")
       end
     end
     """
@@ -178,7 +178,7 @@ defmodule ExScript.CompileTest do
     assert js <> "\n" == """
     ExScript.Modules.Hello = {
         world(mod) {
-            return mod.fun();
+            return mod.fun('a');
         }
     }
     """

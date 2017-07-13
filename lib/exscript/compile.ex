@@ -33,10 +33,10 @@ defmodule ExScript.Compile do
         {token, _, _} = ast
         cond do
           is_tuple token ->
-            {token, _, _} = token
-            case token do
-              :. -> transform_property_access ast
-              true -> transform_external_function_call ast
+            {token, _, parent} = token
+            case parent do
+              {:__aliases__, _,} -> transform_external_function_call ast
+              _ -> transform_property_access ast
             end
           true ->
             transform_non_literal! ast
