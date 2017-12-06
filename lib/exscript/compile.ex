@@ -28,6 +28,7 @@ defmodule ExScript.Compile do
   end
 
   defp transform!(ast) do
+    IO.inspect ast
     cond do
       is_tuple ast ->
         {token, _, _} = ast
@@ -35,8 +36,10 @@ defmodule ExScript.Compile do
           is_tuple token ->
             {token, _, parent} = token
             case parent do
-              {:__aliases__, _,} -> transform_external_function_call ast
-              _ -> transform_property_access ast
+              {:__aliases__, _,} ->
+                transform_external_function_call ast
+              _ ->
+                transform_property_access ast
             end
           true ->
             transform_non_literal! ast
@@ -297,8 +300,10 @@ defmodule ExScript.Compile do
   end
 
   defp transform_property_access({
-    {_, _, [parent_ast, k]}, _, args
+    {_, _, [parent_ast, key]}, _, args
   } = ast) do
+    # CHECK HERE
+    IO.inspect parent_ast
     if is_list(args) and length(args) > 0 do
       %{
         type: "CallExpression",
@@ -308,7 +313,7 @@ defmodule ExScript.Compile do
           object: transform!(parent_ast),
           property: %{
             type: "Identifier",
-            name: "#{k}"
+            name: "#{key}"
           },
           arguments: []
         }
@@ -320,7 +325,7 @@ defmodule ExScript.Compile do
         object: transform!(parent_ast),
         property: %{
           type: "Identifier",
-          name: "#{k}"
+          name: "#{key}"
         }
       }
     end
@@ -411,9 +416,9 @@ defmodule ExScript.Compile do
     }
   end
 
-  defp transform_pipeline({_, _, [arg | [func_call]]} = ast) do
-    fn_call_ast = transform! func_call
-    %{fn_call_ast | arguments: [transform!(arg)] ++ fn_call_ast.arguments}
+  defp transform_pipeline({_, _, [arg, caller]} = ast) do
+    IO.inspect caller
+    {}
   end
 
   defp nested_if_statement(if_elses, index \\ 0) do

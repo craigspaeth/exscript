@@ -140,6 +140,13 @@ defmodule ExScript.CompileTest do
     """
   end
 
+  test "compiles basic function calls" do
+    js = ExScript.Compile.to_js! quote do: IO.puts("a")
+    assert js <> "\n" == """
+    ExScript.Modules.IO.puts('a')
+    """
+  end
+
   test "compiles external module function calls" do
     ast = Code.string_to_quoted! """
     defmodule Hello do
@@ -328,9 +335,9 @@ defmodule ExScript.CompileTest do
   end
 
   test "compiles pipeline operator" do
-    js = ExScript.Compile.to_js! quote do: "a" |> IO.puts |> IO.puts
+    js = ExScript.Compile.to_js! quote do: "a" |> IO.puts
     assert js <> "\n" == """
-    ExScript.Modules.IO.puts(ExScript.Modules.IO.puts('a'))
+    ExScript.Modules.IO.puts('a')
     """
   end
 
