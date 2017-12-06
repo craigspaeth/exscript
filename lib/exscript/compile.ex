@@ -28,7 +28,6 @@ defmodule ExScript.Compile do
   end
 
   defp transform!(ast) do
-    IO.inspect ast
     cond do
       is_tuple ast ->
         {token, _, _} = ast
@@ -82,7 +81,7 @@ defmodule ExScript.Compile do
       token in [:+, :*, :/, :-, :==, :<>] ->
         transform_binary_expression ast
       String.starts_with? to_string(token), "is_" ->
-        transform_identifying_function ast
+        transform_is_type_function ast
       token == :fn ->
         transform_anonymous_function ast
       token == :__block__ ->
@@ -113,7 +112,7 @@ defmodule ExScript.Compile do
     }
   end
 
-  def transform_identifying_function({token, _, args}) do
+  def transform_is_type_function({token, _, args}) do
     %{
       type: "CallExpression",
       callee: %{
@@ -245,26 +244,10 @@ defmodule ExScript.Compile do
   end
 
   defp transform_external_function_call({
-    {_, _, [{_, _, namespaces}, property]}, _, args
+    {_, _, [{_, _, namespaces}, fn_name]}, _, args
   }) when not is_nil namespaces do
-    namespace = Enum.join namespaces, ""
-    %{
-      type: "CallExpression",
-      arguments: Enum.map(args, &transform!(&1)),
-      callee: %{
-        type: "MemberExpression",
-        object: %{
-          type: "MemberExpression",
-          object: %{
-            type: "MemberExpression",
-            object: %{type: "Identifier", name: "ExScript"},
-            property: %{type: "Identifier", name: "Modules"}
-          },
-          property: %{type: "Identifier", name: namespace}
-        },
-        property: %{type: "Identifier", name: property}
-      }
-    }
+    mod_name = Enum.join namespaces, ""
+    module_function_call mod_name, fn_name, Enum.map(args, &transform!(&1))
   end
 
   defp transform_external_function_call({
@@ -302,22 +285,24 @@ defmodule ExScript.Compile do
   defp transform_property_access({
     {_, _, [parent_ast, key]}, _, args
   } = ast) do
-    # CHECK HERE
-    IO.inspect parent_ast
     if is_list(args) and length(args) > 0 do
-      %{
-        type: "CallExpression",
-        arguments: Enum.map(args, &transform!(&1)),
-        callee: %{
-          type: "MemberExpression",
-          object: transform!(parent_ast),
-          property: %{
-            type: "Identifier",
-            name: "#{key}"
-          },
-          arguments: []
-        }
-      }
+      case parent_ast do
+        {_, _, [mod_name]} ->
+          module_function_call mod_name, key, Enum.map(args, &transform!(&1))
+        {parent_variable_name, _, _} ->
+          %{
+            type: "CallExpression",
+            arguments: Enum.map(args, &transform!(&1)),
+            callee: %{
+              type: "MemberExpression",
+              object: transform!(parent_ast),
+              property: %{
+                type: "Identifier",
+                name: key
+              }
+            }
+          }
+      end
     else
       %{
         type: "MemberExpression",
@@ -416,9 +401,13 @@ defmodule ExScript.Compile do
     }
   end
 
-  defp transform_pipeline({_, _, [arg, caller]} = ast) do
-    IO.inspect caller
-    {}
+  defp transform_pipeline({_, _, [arg | [fn_call]]} = ast) do
+    {{_, _, [{_, _, [mod_name]}, fn_name]}, _, extra_args} = fn_call
+    module_function_call(
+      mod_name,
+      fn_name,
+      [transform!(arg)] ++ Enum.map(extra_args, &transform!(&1))
+    )
   end
 
   defp nested_if_statement(if_elses, index \\ 0) do
@@ -464,5 +453,37 @@ defmodule ExScript.Compile do
       true ->
         [%{type: "ReturnStatement", argument: transform!(ast)}]
     end
+  end
+
+  defp module_function_call(mod_name, fn_name, args) do
+    %{
+      type: "CallExpression",
+      arguments: args,
+      callee: %{
+        type: "MemberExpression",
+        object: %{
+          type: "MemberExpression",
+          object: %{
+            type: "MemberExpression",
+            object: %{
+              type: "Identifier",
+              name: "ExScript"
+            },
+            property: %{
+              type: "MemberExpression",
+              name: "Modules"
+            }
+          },
+          property: %{
+            type: "MemberExpression",
+            name: mod_name
+          }
+        },
+        property: %{
+          type: "Identifier",
+          name: fn_name
+        }
+      }
+    }
   end
 end
