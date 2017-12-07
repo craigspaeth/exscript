@@ -145,7 +145,7 @@ defmodule ExScript.Compile do
     }
   end
 
-  def transform_is_type_function({token, _, args}) do
+  defp transform_is_type_function({token, _, args}) do
     %{
       type: "CallExpression",
       callee: %{
@@ -214,7 +214,7 @@ defmodule ExScript.Compile do
     }
   end
 
-  def transform_not_operator({_, _, [val]}) do
+  defp transform_not_operator({_, _, [val]}) do
     %{
       type: "UnaryExpression",
       operator: "!",
@@ -222,14 +222,14 @@ defmodule ExScript.Compile do
     }
   end
 
-  def transform_map({_, _, args}) do
+  defp transform_map({_, _, args}) do
     %{
       type: "ObjectExpression",
       properties: for {key, val} <- args do
         %{
           type: "Property",
           key: %{type: "Identifier", name: key},
-          value: %{type: "Literal", value: val}
+          value: transform!(val)
         }
       end
     }
@@ -329,34 +329,66 @@ defmodule ExScript.Compile do
   end
 
   defp transform_property_access({
-    {_, _, [parent_ast, key]}, _, args
-  } = ast) do
-    case parent_ast do
-      {_, _, [mod_name]} ->
-        module_function_call mod_name, key, Enum.map(args, &transform!(&1))
-      {_, _, _} when length(args) == 0 ->
-        %{
-          type: "MemberExpression",
-          object: transform!(parent_ast),
-          property: %{
-            type: "Identifier",
-            name: key
-          }
+    {_, _, [Kernel, key]}, _, args
+  }) do
+    %{
+      type: "CallExpression",
+      callee: %{
+        type: "MemberExpression",
+        object: %{type: "Identifier", name: "ExScript"},
+        property: %{type: "Identifier", name: key}
+      },
+      arguments: Enum.map(args, &transform!(&1))
+    }
+  end
+
+  defp transform_property_access({
+    {_, _, [{_, _, [mod_name]}, key]}, _, args
+  }) do
+    module_function_call mod_name, key, Enum.map(args, &transform!(&1))
+  end
+
+  defp transform_property_access({
+    {_, _, [{_, _, _} = parent_ast, key]}, _, args
+  }) when length(args) == 0 do
+    %{
+      type: "MemberExpression",
+      object: transform!(parent_ast),
+      property: %{
+        type: "Identifier",
+        name: key
+      }
+    }
+  end
+
+  defp transform_property_access({
+    {_, _, [{_, _, _} = parent_ast, key]}, _, args
+  }) do
+    %{
+      type: "CallExpression",
+      arguments: Enum.map(args, &transform!(&1)),
+      callee: %{
+        type: "MemberExpression",
+        object: transform!(parent_ast),
+        property: %{
+          type: "Identifier",
+          name: key
         }
-      {_, _, _} ->
-        %{
-          type: "CallExpression",
-          arguments: Enum.map(args, &transform!(&1)),
-          callee: %{
-            type: "MemberExpression",
-            object: transform!(parent_ast),
-            property: %{
-              type: "Identifier",
-              name: key
-            }
-          }
-        }
-    end
+      }
+    }
+  end
+
+  defp transform_property_access({
+    {_, _, [{callee, _, _}]}, _, args
+  }) do
+    %{
+      type: "CallExpression",
+      arguments: Enum.map(args, &transform!(&1)),
+      callee: %{
+        type: "Identifier",
+        name: callee
+      }
+    }
   end
 
   defp transform_local_function_call({func_name, _, args}) do

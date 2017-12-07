@@ -95,6 +95,13 @@ defmodule ExScript.CompileTest do
   end
 
   test "compiles maps" do
+    js = ExScript.Compile.to_js! quote do: %{foo: IO.puts()}
+    assert js <> "\n" == """
+    { foo: ExScript.Modules.IO.puts() }
+    """
+  end
+
+  test "compiles maps with function keys" do
     js = ExScript.Compile.to_js! quote do: %{foo: "bar", baz: "qux"}
     assert js <> "\n" == """
     {
@@ -239,6 +246,21 @@ defmodule ExScript.CompileTest do
     }
     """
   end
+
+  test "compiles local function calls" do
+    ast = Code.string_to_quoted! """
+    a = fn () -> "foo" end
+    a.()
+    """
+    js = ExScript.Compile.to_js! ast
+    assert js <> "\n" == """
+    const a = () => {
+        return 'foo';
+    };;
+    a();
+    """
+  end
+
 
   test "compiles list ++ operators" do
     ast = Code.string_to_quoted! "[1, 2] ++ [3, 4]"

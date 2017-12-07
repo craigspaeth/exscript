@@ -1,6 +1,4 @@
-  <html>
-    <head>
-      <script>//
+//
 // A JS library used to implement Elixir/Erlang standard library or language
 // features that don't translate very cleanly 1:1.
 //
@@ -8,7 +6,9 @@ const ExScript = {}
 
 // Namespace for user-land modules
 ExScript.Modules = {}
-ExScript.Modules.JS = {}
+ExScript.Modules.JS = {
+  window: () => window
+}
 ExScript.Modules.IO = {
   puts: window.console.log,
   inspect: window.console.debug
@@ -16,7 +16,7 @@ ExScript.Modules.IO = {
 
 // Data Types
 ExScript.Types = {}
-ExScript.Types.Tuple = class Tuple extends Array {}
+ExScript.Types.Tuple = class Tuple extends Array { }
 
 // Global type checking functions in Elixir
 ExScript.is_atom = val => typeof val === 'symbol'
@@ -46,22 +46,20 @@ ExScript.Modules.Enum.join = (e, char) => Array.prototype.join.call(e, char)
 // List
 ExScript.Modules.List = {}
 ExScript.Modules.List.first = list => list[0]
-ExScript.Modules.Foo = {
-    foo() {
-        return 'foo';
+ExScript.Modules.App = {
+    init() {
+        const int = ExScript.Modules.JS.window()['setInterval'];
+        return int(() => {
+            return this.render({ time: this.time() });
+        }, 1000);
     },
-    bar() {
-        return 'bar';
+    time() {
+        const moment = ExScript.Modules.JS.window()['moment'];
+        return moment().format('MMMM Do YYYY, h:mm:ss a');
     },
-    either(str) {
-        return (() => {
-            if (str === 'a') {
-                return this.bar();
-            } else if (str === 'b') {
-                return this.foo();
-            }
-        })();
+    render(props) {
+        return ExScript.Modules.JS.window()['ReactDOM'].render(ExScript.Modules.JS.window()['React'].createElement(props => {
+            return ExScript.Modules.JS.window()['React'].createElement('div', null, 'The time is ', props.time);
+        }, props), ExScript.Modules.JS.window()['document']['body']);
     }
-}</script>
-    </head>
-  </html>
+}
