@@ -30,29 +30,30 @@ defmodule ExScript.Compile do
   defp transform!(ast) do
     cond do
       is_tuple ast ->
-        {token, _, _} = ast
-        cond do
-          is_tuple token ->
-            {token, _, parent} = token
-            case parent do
-              {:__aliases__, _,} ->
-                transform_external_function_call ast
-              _ ->
-                transform_property_access ast
-            end
-          true ->
-            transform_non_literal! ast
+        try do
+          {token, _, _} = ast
+          cond do
+            is_tuple token ->
+              {token, _, parent} = token
+              case parent do
+                {:__aliases__, _,} ->
+                  transform_external_function_call ast
+                _ ->
+                  transform_property_access ast
+              end
+            true ->
+              transform_non_literal ast
+          end
+        rescue
+          MatchError -> transform_tuple_literal ast
         end
       is_integer(ast) or is_boolean(ast) or is_binary(ast) or is_nil(ast) ->
         %{type: "Literal", value: ast}
       is_atom ast ->
         %{
-          type: "ExpressionStatement",
-          expression: %{
-            type: "CallExpression",
-            callee: %{type: "Identifier", name: "Symbol"},
-            arguments: [%{type: "Literal", value: ast}]
-          }
+          type: "CallExpression",
+          callee: %{type: "Identifier", name: "Symbol"},
+          arguments: [%{type: "Literal", value: ast}]
         }
       is_list ast ->
         %{
@@ -64,7 +65,7 @@ defmodule ExScript.Compile do
     end
   end
 
-  defp transform_non_literal!({token, _, args} = ast) do
+  defp transform_non_literal({token, _, args} = ast) do
     cond do
       token == :if ->
         transform_if ast
@@ -97,6 +98,33 @@ defmodule ExScript.Compile do
       true ->
         raise "Unknown token #{token}"
     end
+  end
+
+  defp transform_tuple_literal(ast) do
+    %{
+      type: "NewExpression",
+      callee: %{
+        type: "MemberExpression",
+        object: %{
+          type: "MemberExpression",
+          object: %{
+            type: "Identifier",
+            name: "ExScript"
+          },
+          property: %{
+            type: "MemberExpression",
+            name: "Types"
+          }
+        },
+        property: %{
+          type: "MemberExpression",
+          name: "Tuple"
+        }
+      },
+      arguments: ast
+        |> Tuple.to_list
+        |>Enum.map(fn (item) -> %{type: "Literal", value: item } end)
+    }
   end
 
   defp transform_binary_expression({token, _, [left, right]}) do
@@ -139,6 +167,7 @@ defmodule ExScript.Compile do
 
   defp transform_assignment({_, _, args}) do
     [vars, val] = args
+    vars = if is_tuple(vars), do: Tuple.to_list(vars), else: vars
     id = if is_list(vars) do
       {var_name, _, _} = Enum.at vars, 0
       %{

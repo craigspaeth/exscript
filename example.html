@@ -44,17 +44,29 @@ ExScript.Modules.Enum.join = (e, char) => Array.prototype.join.call(e, char)
 ExScript.Modules.List = {}
 ExScript.Modules.List.first = (list) => list[0]
 ;
-ExScript.Modules.Foo = {
-    to_html: (view, model, el) => {
+ExScript.Modules.GriffinViewServer = {
+    render(view, model) {
+        return this.to_html(view, model, view.render(model));
+    },
+    to_html(view, model, el) {
         return (() => {
             if (ExScript.is_bitstring(el)) {
                 return el;
             } else if (ExScript.is_list(ExScript.Modules.List.first(el))) {
                 return ExScript.Modules.Enum.join(ExScript.Modules.Enum.map(el, child => {
-                    return ExScript.Modules.Foo.to_html(view, model, child);
+                    return this.to_html(view, model, child);
                 }), '');
+            } else if (ExScript.is_list(el)) {
+                const has_els_func = this.not(ExScript.is_nil(view.__info__(Symbol('functions');)[Symbol('els');]));
+                const [tag_label, ...children] = el;
+                return this.and(has_els_func, this.not(ExScript.is_nil(view.els[tag_label]))) ? ExScript.Modules.IO.inspect(view.els[tag_label]) : const children = ExScript.Modules.Enum.join(ExScript.Modules.Enum.map(children, child => {
+                    return this.to_html(view, model, child);
+                }), '');;
             }
         })();
+    },
+    split_tag_label(view, tag) {
+        return null;
     }
 }</script>
     </head>

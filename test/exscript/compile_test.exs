@@ -42,7 +42,7 @@ defmodule ExScript.CompileTest do
 
   test "compiles atoms" do
     js = ExScript.Compile.to_js! quote do: :hello
-    assert js == "Symbol('hello');"
+    assert js == "Symbol('hello')"
   end
 
   test "compiles strings" do
@@ -82,6 +82,13 @@ defmodule ExScript.CompileTest do
         2,
         3
     ]
+    """
+  end
+
+  test "compiles tuples" do
+    js = ExScript.Compile.to_js! quote do: a = {"a", "b"}
+    assert js <> "\n" == """
+    const a = new ExScript.Types.Tuple('a', 'b');
     """
   end
 
@@ -389,6 +396,16 @@ defmodule ExScript.CompileTest do
     """
   end
 
+  test "compiles tuple pattern matching" do
+    ast = Code.string_to_quoted! """
+    {a, b} = {"a", "b"}
+    """
+    js = ExScript.Compile.to_js! ast
+    assert js <> "\n" == """
+    const [a, b] = new ExScript.Types.Tuple('a', 'b');
+    """
+  end
+
   @tag :skip
   test "compiles -- operators" do
   end
@@ -424,9 +441,5 @@ defmodule ExScript.CompileTest do
 
   @tag :skip
   test "compiles pids" do
-  end
-
-  @tag :skip
-  test "compiles tuples" do
   end
 end
