@@ -28,6 +28,8 @@ defmodule ExScript.CompileTest do
     assert js == "ExScript.is_boolean(true)"
     js = ExScript.Compile.to_js! quote do: is_array(true)
     assert js == "ExScript.is_array(true)"
+    js = ExScript.Compile.to_js! quote do: is_nil(true)
+    assert js == "ExScript.is_nil(true)"
   end
 
   test "compiles assignment" do
@@ -257,6 +259,47 @@ defmodule ExScript.CompileTest do
     assert js == "const a = true ? 'hi' : 'bai';"
   end
 
+  test "compiles if expressions with blocks" do
+    ast = Code.string_to_quoted! """
+    a = if true do
+      b = "a"
+      b <> "hi"
+    else
+      a = "b"
+      a <> "c"
+    end
+    """
+    js = ExScript.Compile.to_js! ast
+    assert js <> "\n" == """
+    const a = true ? (() => {
+        const b = 'a';
+        return b + 'hi';
+    })() : (() => {
+        const a = 'b';
+        return a + 'c';
+    })();
+    """
+  end
+
+  test "compiles blocks that return assignment" do
+    ast = Code.string_to_quoted! """
+    a = if true do
+      c = "a"
+      a = "c"
+    else
+      "b"
+    end
+    """
+    js = ExScript.Compile.to_js! ast
+    assert js <> "\n" == """
+    const a = true ? (() => {
+        const c = 'a';
+        const a = 'c';
+        return a;
+    })() : 'b';
+    """
+  end
+
   test "compiles cond expressions" do
     ast = Code.string_to_quoted! """
     val = cond do
@@ -415,24 +458,34 @@ defmodule ExScript.CompileTest do
     assert js == "'a' + 'b'"
   end
 
-  @tag :skip
   test "compiles or operators" do
+    js = ExScript.Compile.to_js! quote do: if true or true, do: "hi", else: "bai"
+    assert js == "true || true ? 'hi' : 'bai'"
   end
 
-  @tag :skip
   test "compiles and operators" do
+    js = ExScript.Compile.to_js! quote do: if true and true, do: "hi", else: "bai"
+    assert js == "true && true ? 'hi' : 'bai'"
   end
 
-  @tag :skip
   test "compiles || operators" do
+    js = ExScript.Compile.to_js! quote do: if true || true, do: "hi", else: "bai"
+    assert js == "true || true ? 'hi' : 'bai'"
   end
 
-  @tag :skip
   test "compiles && operators" do
+    js = ExScript.Compile.to_js! quote do: if true && true, do: "hi", else: "bai"
+    assert js == "true && true ? 'hi' : 'bai'"
   end
 
-  @tag :skip
   test "compiles not operators" do
+    js = ExScript.Compile.to_js! quote do: if not "foo", do: "hi", else: "bai"
+    assert js == "!'foo' ? 'hi' : 'bai'"
+  end
+
+  test "compiles advanced not operators" do
+    js = ExScript.Compile.to_js! quote do: if not IO.puts(), do: "hi", else: "bai"
+    assert js == "!ExScript.Modules.IO.puts() ? 'hi' : 'bai'"
   end
 
   @tag :skip

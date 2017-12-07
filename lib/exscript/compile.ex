@@ -79,7 +79,9 @@ defmodule ExScript.Compile do
         transform_map ast
       token == := ->
         transform_assignment ast
-      token in [:+, :*, :/, :-, :==, :<>] ->
+      token == :not ->
+        transform_not_operator ast
+      token in [:+, :*, :/, :-, :==, :<>, :and, :or, :||, :&&] ->
         transform_binary_expression ast
       String.starts_with? to_string(token), "is_" ->
         transform_is_type_function ast
@@ -133,6 +135,9 @@ defmodule ExScript.Compile do
       operator: case token do
         :== -> "==="
         :<> -> "+"
+        :and -> "&&"
+        :or -> "||"
+        :not -> "!"
         _ -> token
       end,
       left: transform!(left),
@@ -167,7 +172,11 @@ defmodule ExScript.Compile do
 
   defp transform_assignment({_, _, args}) do
     [vars, val] = args
-    vars = if is_tuple(vars), do: Tuple.to_list(vars), else: vars
+    vars = if is_tuple(vars) and is_tuple(List.first(Tuple.to_list(vars))) do
+      Tuple.to_list(vars)
+    else
+      vars
+    end
     id = if is_list(vars) do
       {var_name, _, _} = Enum.at vars, 0
       %{
@@ -202,6 +211,14 @@ defmodule ExScript.Compile do
           init: transform! val
         }
       ]
+    }
+  end
+
+  def transform_not_operator({_, _, [val]}) do
+    %{
+      type: "UnaryExpression",
+      operator: "!",
+      argument: transform! val
     }
   end
 
@@ -314,34 +331,31 @@ defmodule ExScript.Compile do
   defp transform_property_access({
     {_, _, [parent_ast, key]}, _, args
   } = ast) do
-    if is_list(args) and length(args) > 0 do
-      case parent_ast do
-        {_, _, [mod_name]} ->
-          module_function_call mod_name, key, Enum.map(args, &transform!(&1))
-        {parent_variable_name, _, _} ->
-          %{
-            type: "CallExpression",
-            arguments: Enum.map(args, &transform!(&1)),
-            callee: %{
-              type: "MemberExpression",
-              object: transform!(parent_ast),
-              property: %{
-                type: "Identifier",
-                name: key
-              }
+    case parent_ast do
+      {_, _, [mod_name]} ->
+        module_function_call mod_name, key, Enum.map(args, &transform!(&1))
+      {_, _, _} when length(args) == 0 ->
+        %{
+          type: "MemberExpression",
+          object: transform!(parent_ast),
+          property: %{
+            type: "Identifier",
+            name: key
+          }
+        }
+      {_, _, _} ->
+        %{
+          type: "CallExpression",
+          arguments: Enum.map(args, &transform!(&1)),
+          callee: %{
+            type: "MemberExpression",
+            object: transform!(parent_ast),
+            property: %{
+              type: "Identifier",
+              name: key
             }
           }
-      end
-    else
-      %{
-        type: "MemberExpression",
-        computed: false,
-        object: transform!(parent_ast),
-        property: %{
-          type: "Identifier",
-          name: "#{key}"
         }
-      }
     end
   end
 
@@ -364,11 +378,18 @@ defmodule ExScript.Compile do
   end
 
   defp transform_if({_, _, [test, [{_, consequent}, {_, alternate}]]}) do
+    expr = fn (body) ->
+      if is_tuple(body) do
+        iife(return_block(body))
+      else
+        transform!(body)
+      end
+    end
     %{
       type: "ConditionalExpression",
       test: transform!(test),
-      consequent: transform!(consequent),
-      alternate: transform!(alternate)
+      consequent: expr.(consequent),
+      alternate: expr.(alternate)
     }
   end
 
@@ -475,12 +496,28 @@ defmodule ExScript.Compile do
           :__block__ ->
             [return_line | fn_lines] = Enum.reverse body
             Enum.map(fn_lines, &transform!(&1)) ++
-            [%{type: "ReturnStatement", argument: transform!(return_line)}]
+            dont_return_assignment(return_line)
           _ ->
-            [%{type: "ReturnStatement", argument: transform!(ast)}]
+            dont_return_assignment ast
         end
       true ->
         [%{type: "ReturnStatement", argument: transform!(ast)}]
+    end
+  end
+
+  defp dont_return_assignment(ast) do
+    {key, _, body} = ast
+    if key == := do
+      [{var_name, _, _}, _] = body
+      [
+        transform!(ast),
+        %{
+          type: "ReturnStatement",
+          argument: %{type: "Identifier", name: var_name}
+        }
+      ]
+    else
+      [%{type: "ReturnStatement", argument: transform!(ast)}]
     end
   end
 
@@ -511,6 +548,21 @@ defmodule ExScript.Compile do
         property: %{
           type: "Identifier",
           name: fn_name
+        }
+      }
+    }
+  end
+
+  defp iife(body) do
+    %{
+      type: "CallExpression",
+      arguments: [],
+      callee: %{
+        type: "ArrowFunctionExpression",
+        params: [],
+        body: %{
+          type: "BlockStatement",
+          body: body
         }
       }
     }

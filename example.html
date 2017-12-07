@@ -11,8 +11,12 @@ ExScript.Modules = {}
 ExScript.Modules.JS = {}
 ExScript.Modules.IO = {
   puts: window.console.log,
-  inspect: window.console.debug,
+  inspect: window.console.debug
 }
+
+// Data Types
+ExScript.Types = {}
+ExScript.Types.Tuple = class Tuple extends Array {}
 
 // Global type checking functions in Elixir
 ExScript.is_atom = val => typeof val === 'symbol'
@@ -32,7 +36,6 @@ ExScript.is_port = val => typeof val === 'boolean'
 ExScript.is_reference = val => typeof val === 'boolean'
 ExScript.is_tuple = val => typeof val === 'boolean'
 
-
 // Standard library
 
 // Enum
@@ -42,31 +45,22 @@ ExScript.Modules.Enum.join = (e, char) => Array.prototype.join.call(e, char)
 
 // List
 ExScript.Modules.List = {}
-ExScript.Modules.List.first = (list) => list[0]
-;
-ExScript.Modules.GriffinViewServer = {
-    render(view, model) {
-        return this.to_html(view, model, view.render(model));
+ExScript.Modules.List.first = list => list[0]
+ExScript.Modules.Foo = {
+    foo() {
+        return 'foo';
     },
-    to_html(view, model, el) {
+    bar() {
+        return 'bar';
+    },
+    either(str) {
         return (() => {
-            if (ExScript.is_bitstring(el)) {
-                return el;
-            } else if (ExScript.is_list(ExScript.Modules.List.first(el))) {
-                return ExScript.Modules.Enum.join(ExScript.Modules.Enum.map(el, child => {
-                    return this.to_html(view, model, child);
-                }), '');
-            } else if (ExScript.is_list(el)) {
-                const has_els_func = this.not(ExScript.is_nil(view.__info__(Symbol('functions');)[Symbol('els');]));
-                const [tag_label, ...children] = el;
-                return this.and(has_els_func, this.not(ExScript.is_nil(view.els[tag_label]))) ? ExScript.Modules.IO.inspect(view.els[tag_label]) : const children = ExScript.Modules.Enum.join(ExScript.Modules.Enum.map(children, child => {
-                    return this.to_html(view, model, child);
-                }), '');;
+            if (str === 'a') {
+                return this.bar();
+            } else if (str === 'b') {
+                return this.foo();
             }
         })();
-    },
-    split_tag_label(view, tag) {
-        return null;
     }
 }</script>
     </head>
