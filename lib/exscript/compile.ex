@@ -34,13 +34,15 @@ defmodule ExScript.Compile do
           {token, _, _} = ast
           cond do
             is_tuple token ->
-              {token, _, parent} = token
+              {_, _, parent} = token
               case parent do
                 {:__aliases__, _,} ->
                   transform_external_function_call ast
                 _ ->
                   transform_property_access ast
               end
+            token == :__aliases__ ->
+              transform_module_reference ast
             true ->
               transform_non_literal ast
           end
@@ -65,7 +67,7 @@ defmodule ExScript.Compile do
     end
   end
 
-  defp transform_non_literal({token, _, args} = ast) do
+  defp transform_non_literal({token, callee, args} = ast) do
     cond do
       token == :if ->
         transform_if ast
@@ -83,16 +85,20 @@ defmodule ExScript.Compile do
         transform_not_operator ast
       token in [:+, :*, :/, :-, :==, :<>, :and, :or, :||, :&&] ->
         transform_binary_expression ast
-      String.starts_with? to_string(token), "is_" ->
-        transform_is_type_function ast
+      token == :++ ->
+        transform_array_concat_operator ast
+      token == :<<>> ->
+        transform_string_interpolation ast
+      callee[:import] == Kernel or Kernel.__info__(:functions)
+      |> Keyword.keys
+      |> Enum.member?(token) ->
+        transform_kernel_function ast
       token == :fn ->
         transform_anonymous_function ast
       token == :__block__ ->
         transform_block_statement ast
       token == :defmodule ->
         transform_module ast
-      token == :++ ->
-        transform_array_concat_operator ast
       args == nil ->
         %{type: "Identifier", name: token}
       is_list(args) ->
@@ -145,16 +151,8 @@ defmodule ExScript.Compile do
     }
   end
 
-  defp transform_is_type_function({token, _, args}) do
-    %{
-      type: "CallExpression",
-      callee: %{
-        type: "MemberExpression",
-        object: %{type: "Identifier", name: "ExScript"},
-        property: %{type: "Identifier", name: token}
-      },
-      arguments: Enum.map(args, &transform!(&1))
-    }
+  defp transform_kernel_function({fn_name, _, args}) do
+    module_function_call "Kernel", fn_name, args
   end
 
   defp transform_anonymous_function({_, _, args}) do
@@ -182,7 +180,7 @@ defmodule ExScript.Compile do
       %{
         type: "ArrayPattern",
         elements: if var_name == :| do
-          {var_name, _, body} = Enum.at vars, 0
+          {_, _, body} = Enum.at vars, 0
           [{head_var_name, _, _}, {tail_var_name, _, _}] = body
           [
             %{type: "Identifier", name: head_var_name},
@@ -293,12 +291,12 @@ defmodule ExScript.Compile do
     {_, _, [{_, _, namespaces}, fn_name]}, _, args
   }) when not is_nil namespaces do
     mod_name = Enum.join namespaces, ""
-    module_function_call mod_name, fn_name, Enum.map(args, &transform!(&1))
+    module_function_call mod_name, fn_name, args
   end
 
   defp transform_external_function_call({
     {_, _, [{callee_name, _, namespaces}, func_name]}, _, args
-  } = ast) when is_nil namespaces do
+  }) when is_nil namespaces do
     %{
       type: "CallExpression",
       arguments: Enum.map(args, &transform!(&1)),
@@ -319,7 +317,7 @@ defmodule ExScript.Compile do
 
   defp transform_property_access({
     {_, _, [_, action]}, _, [owner, prop]
-  } = ast) when action == :get do
+  }) when action == :get do
     %{
       type: "MemberExpression",
       computed: true,
@@ -345,7 +343,7 @@ defmodule ExScript.Compile do
   defp transform_property_access({
     {_, _, [{_, _, [mod_name]}, key]}, _, args
   }) do
-    module_function_call mod_name, key, Enum.map(args, &transform!(&1))
+    module_function_call mod_name, key, args
   end
 
   defp transform_property_access({
@@ -450,7 +448,7 @@ defmodule ExScript.Compile do
   end
 
   defp transform_case({_, _, [val, [{_, clauses}]]}) do
-    if_elses = for {_, _, [[compare_val], body]} = clause <- clauses do
+    if_elses = for {_, _, [[compare_val], body]} <- clauses do
       is_any = if is_tuple compare_val do
         compare_val
         |> Tuple.to_list
@@ -483,13 +481,43 @@ defmodule ExScript.Compile do
     }
   end
 
-  defp transform_pipeline({_, _, [arg | [fn_call]]} = ast) do
+  defp transform_pipeline({_, _, [arg | [fn_call]]}) do
     {{_, _, [{_, _, [mod_name]}, fn_name]}, _, extra_args} = fn_call
     module_function_call(
       mod_name,
       fn_name,
-      [transform!(arg)] ++ Enum.map(extra_args, &transform!(&1))
+      [arg | extra_args] 
     )
+  end
+
+  defp transform_module_reference({_, _, [mod_name]}) do
+    module_namespace mod_name
+  end
+
+  defp transform_string_interpolation({_, _, elements} = ast) do
+    els = for el <- elements do
+      case el do
+        {:::, _, _} ->
+          {_, _, [{_, _, [interpolated_ast]}, _]} = el
+          [expression: transform! interpolated_ast]
+        _ ->
+          template_el = %{
+            type: "TemplateElement",
+            value: %{
+              raw: el,
+              cooked: el
+            }
+          }
+          [quasis: template_el]
+      end
+    end
+    expressions = for [expression: val] <- els, do: val
+    quasis = for [quasis: val] <- els, do: val
+    %{
+      type: "TemplateLiteral",
+      expressions: expressions,
+      quasis: quasis
+    }
   end
 
   defp nested_if_statement(if_elses, index \\ 0) do
@@ -527,7 +555,7 @@ defmodule ExScript.Compile do
         case key do
           :__block__ ->
             [return_line | fn_lines] = Enum.reverse body
-            Enum.map(fn_lines, &transform!(&1)) ++
+            Enum.map(Enum.reverse(fn_lines), &transform!(&1)) ++
             dont_return_assignment(return_line)
           _ ->
             dont_return_assignment ast
@@ -554,33 +582,45 @@ defmodule ExScript.Compile do
   end
 
   defp module_function_call(mod_name, fn_name, args) do
+    if fn_name == :embed do
+      [code] = args
+      cmd = "echo \"#{code}\" | node_modules/.bin/acorn"
+      js_ast = Poison.decode! :os.cmd String.to_charlist cmd
+      [first] = js_ast["body"]
+      first
+    else
+      %{
+        type: "CallExpression",
+        arguments: Enum.map(args, &transform!(&1)),
+        callee: %{
+          type: "MemberExpression",
+          object: module_namespace(mod_name),
+          property: %{
+            type: "Identifier",
+            name: fn_name
+          }
+        }
+      }
+    end
+  end
+
+  defp module_namespace(mod_name) do
     %{
-      type: "CallExpression",
-      arguments: args,
-      callee: %{
+      type: "MemberExpression",
+      object: %{
         type: "MemberExpression",
         object: %{
-          type: "MemberExpression",
-          object: %{
-            type: "MemberExpression",
-            object: %{
-              type: "Identifier",
-              name: "ExScript"
-            },
-            property: %{
-              type: "MemberExpression",
-              name: "Modules"
-            }
-          },
-          property: %{
-            type: "MemberExpression",
-            name: mod_name
-          }
+          type: "Identifier",
+          name: "ExScript"
         },
         property: %{
-          type: "Identifier",
-          name: fn_name
+          type: "MemberExpression",
+          name: "Modules"
         }
+      },
+      property: %{
+        type: "MemberExpression",
+        name: mod_name
       }
     }
   end

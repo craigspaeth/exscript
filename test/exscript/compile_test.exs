@@ -23,13 +23,30 @@ defmodule ExScript.CompileTest do
     assert js == "1 + 2 * 3 / 4 - 5"
   end
 
-  test "compiles identitfying functions" do
+  test "compiles kernel functions" do
     js = ExScript.Compile.to_js! quote do: is_boolean(true)
-    assert js == "ExScript.is_boolean(true)"
-    js = ExScript.Compile.to_js! quote do: is_array(true)
-    assert js == "ExScript.is_array(true)"
+    assert js == "ExScript.Modules.Kernel.is_boolean(true)"
+    js = ExScript.Compile.to_js! quote do: is_list(true)
+    assert js == "ExScript.Modules.Kernel.is_list(true)"
     js = ExScript.Compile.to_js! quote do: is_nil(true)
-    assert js == "ExScript.is_nil(true)"
+    assert js == "ExScript.Modules.Kernel.is_nil(true)"
+    js = ExScript.Compile.to_js! quote do: length("a")
+    assert js == "ExScript.Modules.Kernel.length('a')"
+  end
+
+  test "compiles kernel functions in function body" do
+    js = ExScript.Compile.to_js! Code.string_to_quoted! """
+    fn ->
+      a = 1
+      length a
+    end
+  """
+  assert js <> "\n" == """
+  () => {
+      const a = 1;
+      return ExScript.Modules.Kernel.length(a);
+  }
+  """
   end
 
   test "compiles assignment" do
@@ -65,13 +82,15 @@ defmodule ExScript.CompileTest do
     js = ExScript.Compile.to_js! Code.string_to_quoted! """
       fn ->
         a = 1
-        a
+        b = 2
+        a + b
       end
     """
     assert js <> "\n" == """
     () => {
         const a = 1;
-        return a;
+        const b = 2;
+        return a + b;
     }
     """
   end
@@ -218,8 +237,8 @@ defmodule ExScript.CompileTest do
     js = ExScript.Compile.to_js! ast
     assert js <> "\n" == """
     () => {
-        const key = 'bar';
         const foo = { foo: 'bar' };
+        const key = 'bar';
         return foo[key];
     }
     """
@@ -355,8 +374,8 @@ defmodule ExScript.CompileTest do
     assert js <> "\n" == """
     const val = (() => {
         if (1 + 1 === 2) {
-            const b = 'bar';
             const a = 'foo';
+            const b = 'bar';
             return a + b;
         } else if (false) {
             return 'bai';
@@ -471,8 +490,14 @@ defmodule ExScript.CompileTest do
     """
   end
 
-  @tag :skip
-  test "compiles -- operators" do
+  test "compiles references to modules" do
+    ast = Code.string_to_quoted! """
+    IO.puts IO
+    """
+    js = ExScript.Compile.to_js! ast
+    assert js <> "\n" == """
+    ExScript.Modules.IO.puts(ExScript.Modules.IO)
+    """
   end
 
   test "compiles <> operators" do
@@ -510,11 +535,41 @@ defmodule ExScript.CompileTest do
     assert js == "!ExScript.Modules.IO.puts() ? 'hi' : 'bai'"
   end
 
+  test "compiles embedded code" do
+    ast = Code.string_to_quoted! """
+    fn () ->
+      a = "a"
+      JS.embed "debugger"
+      b = "b"
+    end
+    """
+    js = ExScript.Compile.to_js! ast
+    assert js <> "\n" == """
+    () => {
+        const a = 'a';
+        debugger;
+        const b = 'b';
+        return b;
+    }
+    """
+  end
+
+  test "compiles string interpolation" do
+    # js = ExScript.Compile.to_js! quote do: "foo #{"bar"}"
+    # assert js == "`foo ${ 'bar' }`"
+    js = ExScript.Compile.to_js! quote do: "foo #{"bar"} baz"
+    assert js == "`foo ${ 'bar' } baz`"
+  end
+
   @tag :skip
   test "compiles ==, !=, ===, !==, <=, >=, <, and > operators" do
   end
 
   @tag :skip
   test "compiles pids" do
+  end
+
+  @tag :skip
+  test "compiles -- operators" do
   end
 end

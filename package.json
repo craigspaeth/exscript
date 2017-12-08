@@ -7,11 +7,13 @@
     "acorn": "^5.1.1",
     "escodegen": "^1.8.1",
     "estree-formal": "^1.1.5",
+    "nodemon": "^1.12.5",
     "prettier-standard": "^6.0.0"
   },
   "devDependencies": {},
   "scripts": {
-    "format": "node_modules/.bin/prettier-standard lib/exscript/lib.js"
+    "format": "prettier-standard lib/exscript/lib.js",
+    "watch": "nodemon --exec 'mix example' example/app.ex"
   },
   "author": "",
   "license": "ISC"
