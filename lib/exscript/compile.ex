@@ -495,11 +495,26 @@ defmodule ExScript.Compile do
   end
 
   defp transform_string_interpolation({_, _, elements} = ast) do
-    els = for el <- elements do
+    els = List.flatten(for el <- elements do
       case el do
         {:::, _, _} ->
           {_, _, [{_, _, [interpolated_ast]}, _]} = el
-          [expression: transform! interpolated_ast]
+          if el == List.last elements do
+            template_el = %{
+              type: "TemplateElement",
+              value: %{
+                raw: "",
+                cooked: ""
+              },
+              tail: true
+            }
+            [
+              {:expression, transform! interpolated_ast},
+              {:quasis, template_el}
+            ]
+          else
+            [{:expression, transform! interpolated_ast}]  
+          end
         _ ->
           template_el = %{
             type: "TemplateElement",
@@ -508,11 +523,11 @@ defmodule ExScript.Compile do
               cooked: el
             }
           }
-          [quasis: template_el]
+          {:quasis, template_el}
       end
-    end
-    expressions = for [expression: val] <- els, do: val
-    quasis = for [quasis: val] <- els, do: val
+    end)
+    expressions = for {:expression, val} <- els, do: val
+    quasis = for {:quasis, val} <- els, do: val
     %{
       type: "TemplateLiteral",
       expressions: expressions,
@@ -542,7 +557,28 @@ defmodule ExScript.Compile do
         :obj -> "FunctionExpression"
       end,
       params: Enum.map(args, fn ({var_name, _, _}) ->
-        %{type: "Identifier", name: var_name}
+        IO.inspect var_name
+        case var_name do
+          :%{} ->
+            %{
+              type: "ObjectPattern",
+              properties: [
+                %{
+                  type: "Property",
+                  key: %{
+                    type: "Identifier",
+                    name: "a"
+                  },
+                  value: %{
+                    type: "Identifier",
+                    name: "a"
+                  }
+                }
+              ]
+            }            
+          _ ->
+            %{type: "Identifier", name: var_name}
+        end
       end),
       body: %{type: "BlockStatement", body: return_block(return_val)}
     }
@@ -589,16 +625,26 @@ defmodule ExScript.Compile do
       [first] = js_ast["body"]
       first
     else
+      is_computed = fn_name |> Atom.to_string() |> String.contains?("?")
       %{
         type: "CallExpression",
         arguments: Enum.map(args, &transform!(&1)),
         callee: %{
           type: "MemberExpression",
           object: module_namespace(mod_name),
-          property: %{
-            type: "Identifier",
-            name: fn_name
-          }
+          property: if is_computed do
+            %{
+              type: "Literal",
+              value: fn_name,
+              raw: fn_name
+            }
+          else
+            %{
+              type: "Identifier",
+              name: fn_name
+            }
+          end,
+          computed: is_computed
         }
       }
     end

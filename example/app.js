@@ -27,11 +27,18 @@ ExScript.Modules.Atom.to_string = atom => String(atom).slice(7, -1)
 // Enum
 ExScript.Modules.Enum = {}
 ExScript.Modules.Enum.map = (e, ittr) => Array.prototype.map.call(e, ittr)
+ExScript.Modules.Enum.reduce = (e, ittr) => Array.prototype.reduce.call(e, ittr)
 ExScript.Modules.Enum.join = (e, char) => Array.prototype.join.call(e, char)
+ExScript.Modules.Enum.at = (e, index) => e[index]
 
 // List
 ExScript.Modules.List = {}
 ExScript.Modules.List.first = list => list[0]
+
+// Keyword
+ExScript.Modules.Keyword = {}
+ExScript.Modules.Keyword['keyword?'] = list =>
+  list && list[0] instanceof ExScript.Types.Tuple
 
 // Kernel
 ExScript.Modules.Kernel = {}
@@ -51,7 +58,7 @@ ExScript.Modules.Kernel.is_number = val => typeof val === 'number'
 ExScript.Modules.Kernel.is_pid = val => typeof val === 'boolean'
 ExScript.Modules.Kernel.is_port = val => typeof val === 'boolean'
 ExScript.Modules.Kernel.is_reference = val => typeof val === 'boolean'
-ExScript.Modules.Kernel.is_tuple = val => typeof val === 'boolean'
+ExScript.Modules.Kernel.is_tuple = val => val instanceof ExScript.Types.Tuple
 ExScript.Modules.Kernel.length = val => val.length
 ExScript.Modules.App = {
     init() {
@@ -64,20 +71,26 @@ ExScript.Modules.App = {
 ExScript.Modules.ViewClient = {
     to_react_el(dsl_el) {
         const [tag_label, ...children] = dsl_el;
+        const attrs = ExScript.Modules.Keyword['keyword?'](ExScript.Modules.List.first(children)) ? (() => {
+            debugger;
+            return ExScript.Modules.Enum.reduce(ExScript.Modules.List.first(children), t => {
+                return ExScript.Modules.IO.inspect(t);
+            });
+        })() : null;
         return (() => {
             if (ExScript.Modules.Kernel.length(children) === 1 && ExScript.Modules.Kernel.is_bitstring(ExScript.Modules.List.first(children))) {
-                return this.text_node(dsl_el);
-            } else if (ExScript.Modules.Kernel.is_list(ExScript.Modules.List.first(children))) {
+                return this.text_node(attrs, dsl_el);
+            } else if (true) {
                 return ExScript.Modules.Enum.map(children, el => {
                     return this.to_react_el(el);
                 });
             }
         })();
     },
-    text_node(dsl_el) {
+    text_node(attrs, dsl_el) {
         const [tag_label, text] = dsl_el;
         return ExScript.Modules.JS.window()['React'].createElement(props => {
-            return ExScript.Modules.JS.window()['React'].createElement(ExScript.Modules.Atom.to_string(tag_label), null, text);
+            return ExScript.Modules.JS.window()['React'].createElement(ExScript.Modules.Atom.to_string(tag_label), attrs, text);
         }, {});
     },
     render(view, model) {
@@ -95,7 +108,12 @@ ExScript.Modules.View = {
             ],
             [
                 Symbol('h1'),
-                `Hello `
+                `Hello ${ model.name }`
+            ],
+            [
+                Symbol('a'),
+                [new ExScript.Types.Tuple('href', 'google.com')],
+                'See Google'
             ]
         ];
     }

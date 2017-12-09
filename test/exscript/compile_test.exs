@@ -555,10 +555,33 @@ defmodule ExScript.CompileTest do
   end
 
   test "compiles string interpolation" do
-    # js = ExScript.Compile.to_js! quote do: "foo #{"bar"}"
-    # assert js == "`foo ${ 'bar' }`"
+    js = ExScript.Compile.to_js! quote do: "foo #{"bar"}"
+    assert js == "`foo ${ 'bar' }`"
     js = ExScript.Compile.to_js! quote do: "foo #{"bar"} baz"
     assert js == "`foo ${ 'bar' } baz`"
+    js = ExScript.Compile.to_js! quote do: "foo #{"bar" + "baz"}"
+    assert js == "`foo ${ 'bar' + 'baz' }`"
+    js = ExScript.Compile.to_js! quote do: "foo #{"bar" + "baz"} qux"
+    assert js == "`foo ${ 'bar' + 'baz' } qux`"
+  end
+
+  test "compiles ? functions smartly" do
+    js = ExScript.Compile.to_js! quote do: Keyword.keyword?("a")
+    assert js == "ExScript.Modules.Keyword['keyword?']('a')"
+  end
+
+  test "compiles map pattern matching in function arguments" do
+    ast = Code.string_to_quoted! """
+    fn (%{a: a}) ->
+      a
+    end
+    """
+    js = ExScript.Compile.to_js! ast
+    assert js <> "\n" == """
+    ({a: a}) => {
+        return a;
+    }
+    """
   end
 
   @tag :skip
