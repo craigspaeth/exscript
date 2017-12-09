@@ -158,7 +158,7 @@ defmodule ExScript.Compile do
   defp transform_anonymous_function({_, _, args}) do
     fn_args = for {_, _, fn_args} <- args, do: fn_args
     [return_val | fn_args] = fn_args |> List.flatten |> Enum.reverse
-    function_expression :arrow, fn_args, return_val
+    function_expression :arrow, Enum.reverse(fn_args), return_val
   end
 
   defp transform_block_statement({_, _, args}) do
@@ -494,7 +494,7 @@ defmodule ExScript.Compile do
     module_namespace mod_name
   end
 
-  defp transform_string_interpolation({_, _, elements} = ast) do
+  defp transform_string_interpolation({_, _, elements}) do
     els = List.flatten(for el <- elements do
       case el do
         {:::, _, _} ->
@@ -556,10 +556,9 @@ defmodule ExScript.Compile do
         :arrow -> "ArrowFunctionExpression"
         :obj -> "FunctionExpression"
       end,
-      params: Enum.map(args, fn ({var_name, _, _}) ->
-        IO.inspect var_name
-        case var_name do
-          :%{} ->
+      params: Enum.map(args, fn (ast) ->
+        case ast do
+          {_, _, [{key_name, {val_name, _, _}}]} ->
             %{
               type: "ObjectPattern",
               properties: [
@@ -567,16 +566,40 @@ defmodule ExScript.Compile do
                   type: "Property",
                   key: %{
                     type: "Identifier",
-                    name: "a"
+                    name: key_name
                   },
                   value: %{
                     type: "Identifier",
-                    name: "a"
+                    name: val_name
                   }
                 }
               ]
-            }            
-          _ ->
+            }
+          {{left_name, _, _}, {right_name, _, _}} ->
+            %{
+              type: "ArrayPattern",
+              elements: [
+                %{
+                  type: "Identifier",
+                  name: left_name
+                },
+                %{
+                  type: "Identifier",
+                  name: right_name
+                }
+              ]
+            }
+          {:{}, _, els} ->
+            %{
+              type: "ArrayPattern",
+              elements: Enum.map(els, fn ({name, _, _}) ->
+                %{
+                  type: "Identifier",
+                  name: name
+                }
+              end)
+            }
+          {var_name, _, _} ->
             %{type: "Identifier", name: var_name}
         end
       end),

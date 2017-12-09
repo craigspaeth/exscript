@@ -12,11 +12,9 @@ defmodule ViewClient do
   def to_react_el(dsl_el) do
     [tag_label | children] = dsl_el
     attrs = if Keyword.keyword? List.first children do
-      JS.embed "debugger"
+      IO.inspect List.first(children)
       Enum.reduce List.first(children), fn ({k, v}, acc) ->
-        IO.inspect k
-        IO.inspect v
-        IO.inspect acc
+        IO.inspect k, v, acc
       end
     else
       nil

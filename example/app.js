@@ -72,9 +72,9 @@ ExScript.Modules.ViewClient = {
     to_react_el(dsl_el) {
         const [tag_label, ...children] = dsl_el;
         const attrs = ExScript.Modules.Keyword['keyword?'](ExScript.Modules.List.first(children)) ? (() => {
-            debugger;
-            return ExScript.Modules.Enum.reduce(ExScript.Modules.List.first(children), t => {
-                return ExScript.Modules.IO.inspect(t);
+            (ExScript.Modules.IO.inspect(ExScript.Modules.List.first(children)))
+            return ExScript.Modules.Enum.reduce(ExScript.Modules.List.first(children), ([k, v], acc) => {
+                return ExScript.Modules.IO.inspect(k, v, acc);
             });
         })() : null;
         return (() => {

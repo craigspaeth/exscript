@@ -33,6 +33,7 @@ Takes an Elixir AST, converts it to an ESTree JSON AST, and uses Escodegen to ge
 ### Refactoring
 
 - Break up into module around Elixir primatives or chapter heads in the guide (Basic types, Basic operators, etc.)
+- Hoist ExScript namespace to top of module
 
 ### Tooling
 

@@ -72,7 +72,7 @@ defmodule ExScript.CompileTest do
   test "compiles anonymous functions" do
     js = ExScript.Compile.to_js! quote do: fn (a, b) -> "hi" end
     assert js <> "\n" == """
-    (b, a) => {
+    (a, b) => {
         return 'hi';
     }
     """
@@ -150,6 +150,24 @@ defmodule ExScript.CompileTest do
         },
         bai() {
             return 1 + 1;
+        }
+    }
+    """
+  end
+
+  test "compiles module function args in the right order" do
+    ast = Code.string_to_quoted! """
+    defmodule Hello.World do
+      def hi(a, b) do
+        a
+      end
+    end
+    """
+    js = ExScript.Compile.to_js! ast
+    assert js <> "\n" == """
+    ExScript.Modules.HelloWorld = {
+        hi(a, b) {
+            return a;
         }
     }
     """
@@ -572,18 +590,46 @@ defmodule ExScript.CompileTest do
 
   test "compiles map pattern matching in function arguments" do
     ast = Code.string_to_quoted! """
-    fn (%{a: a}) ->
+    fn (%{a: b}) ->
       a
     end
     """
     js = ExScript.Compile.to_js! ast
     assert js <> "\n" == """
-    ({a: a}) => {
+    ({a: b}) => {
         return a;
     }
     """
   end
 
+  test "compiles tuple pattern matching in function arguments" do
+    ast = Code.string_to_quoted! """
+    fn ({a, b, c}) ->
+      a
+    end
+    """
+    js = ExScript.Compile.to_js! ast
+    assert js <> "\n" == """
+    ([a, b, c]) => {
+        return a;
+    }
+    """
+  end
+
+  test "compiles double tuple pattern matching in function arguments" do
+    ast = Code.string_to_quoted! """
+    fn ({a, b}) ->
+      a
+    end
+    """
+    js = ExScript.Compile.to_js! ast
+    assert js <> "\n" == """
+    ([a, b]) => {
+        return a;
+    }
+    """
+  end
+  
   @tag :skip
   test "compiles ==, !=, ===, !==, <=, >=, <, and > operators" do
   end
