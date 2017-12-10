@@ -34,11 +34,16 @@ Takes an Elixir AST, converts it to an ESTree JSON AST, and uses Escodegen to ge
 
 - Break up into module around Elixir primatives or chapter heads in the guide (Basic types, Basic operators, etc.)
 - Hoist ExScript namespace to top of module
+- Figure out standard lib story (compile from Elixir src, testing, etc?)
+- let instead of const
+- Ensure all variables are being copied
+- Anonymous functions on single line use ES6 shorthand
+- Ternery with one expression doesn't need closure
 
 ### Tooling
 
 - Watch task
-- Development/Productiion builds
+- Development/Production builds
 - Source maps
 
 ### Self hosting

@@ -498,6 +498,30 @@ defmodule ExScript.CompileTest do
     """
   end
 
+  test "compiles local function references" do
+    ast = Code.string_to_quoted! """
+    defmodule Hello.World do
+      def hi, do: [:a, &bai/1]
+      def bai, do: "bai"
+    end
+    """
+    js = ExScript.Compile.to_js! ast
+    assert js <> "\n" == """
+    ExScript.Modules.HelloWorld = {
+        hi() {
+            return [
+                Symbol('a'),
+                this.bai
+            ];
+        },
+        bai() {
+            return 'bai';
+        }
+    }
+    """
+  end
+
+
   test "compiles tuple pattern matching" do
     ast = Code.string_to_quoted! """
     {a, b} = {"a", "b"}
@@ -627,6 +651,28 @@ defmodule ExScript.CompileTest do
     ([a, b]) => {
         return a;
     }
+    """
+  end
+
+  test "compiles !=" do
+    ast = Code.string_to_quoted! """
+    a = if true != false, do: "hi", else: "bai"
+    """
+    js = ExScript.Compile.to_js! ast
+    assert js <> "\n" == """
+    const a = true !== false ? 'hi' : 'bai';
+    """
+  end
+
+  test "compiles functions in keyword lists" do
+    ast = Code.string_to_quoted! """
+    a = [foo: fn -> "bar" end]
+    """
+    js = ExScript.Compile.to_js! ast
+    assert js <> "\n" == """
+    const a = [new ExScript.Types.Tuple(Symbol('foo'), () => {
+            return 'bar';
+        })];
     """
   end
   

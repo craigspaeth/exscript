@@ -12,23 +12,22 @@ defmodule ViewClient do
   def to_react_el(dsl_el) do
     [tag_label | children] = dsl_el
     attrs = if Keyword.keyword? List.first children do
-      IO.inspect List.first(children)
-      Enum.reduce List.first(children), fn ({k, v}, acc) ->
-        IO.inspect k, v, acc
+      Enum.reduce List.first(children), %{}, fn ({k, v}, acc) ->
+        Map.put acc, Atom.to_string(k), v
       end
     else
       nil
     end
+    [_ | childs] = if attrs != nil, do: children, else: [nil] ++ children
     cond do
-      length(children) == 1 and is_bitstring(List.first children) ->
-        text_node attrs, dsl_el
+      is_bitstring(List.first childs) ->
+        text_node tag_label, attrs, List.first childs
       true ->
-        Enum.map children, fn (el) -> to_react_el(el) end
+        Enum.map childs, fn (el) -> to_react_el(el) end
     end
   end
 
-  def text_node(attrs, dsl_el) do
-    [tag_label, text] = dsl_el
+  def text_node(tag_label, attrs, text) do
     JS.window["React"].createElement(fn (props) ->
       JS.window["React"].createElement(Atom.to_string(tag_label), attrs, text)
     end, %{})
@@ -41,10 +40,18 @@ defmodule ViewClient do
 end
 
 defmodule View do
+  def onclick(e) do
+    IO.inspect e
+  end
+
   def render(model) do
     [:div,
       [:h2, "Welcome"],
       [:h1, "Hello #{model.name}"],
-      [:a, [href: "google.com"], "See Google"]]
+      [:ul,
+        [:li, "a"],
+        [:li, "b"],
+        [:a, [href: "hi"], [:p, "a"], [:p, "Hello World"]],
+        [:button, [onClick: fn (e) -> IO.puts(e) end], "Hello World"]]]
   end
 end

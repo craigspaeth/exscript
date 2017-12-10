@@ -27,9 +27,21 @@ ExScript.Modules.Atom.to_string = atom => String(atom).slice(7, -1)
 // Enum
 ExScript.Modules.Enum = {}
 ExScript.Modules.Enum.map = (e, ittr) => Array.prototype.map.call(e, ittr)
-ExScript.Modules.Enum.reduce = (e, ittr) => Array.prototype.reduce.call(e, ittr)
+ExScript.Modules.Enum.reduce = (enumerable, arg2, arg3) => {
+  const reducer = arg3 || arg2
+  const initVal = arg3 ? arg2 : enumerable[0]
+  const callback = (acc, val, i) => reducer(val, acc)
+  return Array.prototype.reduce.call(enumerable, callback, initVal)
+}
 ExScript.Modules.Enum.join = (e, char) => Array.prototype.join.call(e, char)
 ExScript.Modules.Enum.at = (e, index) => e[index]
+
+// Map
+ExScript.Modules.Map = {}
+ExScript.Modules.Map.put = (map, key, val) => {
+  map[key] = val
+  return map
+}
 
 // List
 ExScript.Modules.List = {}
@@ -72,23 +84,26 @@ ExScript.Modules.ViewClient = {
     to_react_el(dsl_el) {
         const [tag_label, ...children] = dsl_el;
         const attrs = ExScript.Modules.Keyword['keyword?'](ExScript.Modules.List.first(children)) ? (() => {
-            (ExScript.Modules.IO.inspect(ExScript.Modules.List.first(children)))
-            return ExScript.Modules.Enum.reduce(ExScript.Modules.List.first(children), ([k, v], acc) => {
-                return ExScript.Modules.IO.inspect(k, v, acc);
+            return ExScript.Modules.Enum.reduce(ExScript.Modules.List.first(children), {}, ([k, v], acc) => {
+                return ExScript.Modules.Map.put(acc, ExScript.Modules.Atom.to_string(k), v);
             });
         })() : null;
+        const [_, ...childs] = attrs !== null ? (() => {
+            return children;
+        })() : (() => {
+            return [null].concat(children);
+        })();
         return (() => {
-            if (ExScript.Modules.Kernel.length(children) === 1 && ExScript.Modules.Kernel.is_bitstring(ExScript.Modules.List.first(children))) {
-                return this.text_node(attrs, dsl_el);
+            if (ExScript.Modules.Kernel.is_bitstring(ExScript.Modules.List.first(childs))) {
+                return this.text_node(tag_label, attrs, ExScript.Modules.List.first(childs));
             } else if (true) {
-                return ExScript.Modules.Enum.map(children, el => {
+                return ExScript.Modules.Enum.map(childs, el => {
                     return this.to_react_el(el);
                 });
             }
         })();
     },
-    text_node(attrs, dsl_el) {
-        const [tag_label, text] = dsl_el;
+    text_node(tag_label, attrs, text) {
         return ExScript.Modules.JS.window()['React'].createElement(props => {
             return ExScript.Modules.JS.window()['React'].createElement(ExScript.Modules.Atom.to_string(tag_label), attrs, text);
         }, {});
@@ -99,6 +114,9 @@ ExScript.Modules.ViewClient = {
     }
 };
 ExScript.Modules.View = {
+    onclick(e) {
+        return ExScript.Modules.IO.inspect(e);
+    },
     render(model) {
         return [
             Symbol('div'),
@@ -111,9 +129,34 @@ ExScript.Modules.View = {
                 `Hello ${ model.name }`
             ],
             [
-                Symbol('a'),
-                [new ExScript.Types.Tuple('href', 'google.com')],
-                'See Google'
+                Symbol('ul'),
+                [
+                    Symbol('li'),
+                    'a'
+                ],
+                [
+                    Symbol('li'),
+                    'b'
+                ],
+                [
+                    Symbol('a'),
+                    [new ExScript.Types.Tuple(Symbol('href'), 'hi')],
+                    [
+                        Symbol('p'),
+                        'a'
+                    ],
+                    [
+                        Symbol('p'),
+                        'Hello World'
+                    ]
+                ],
+                [
+                    Symbol('button'),
+                    [new ExScript.Types.Tuple(Symbol('onClick'), e => {
+                            return ExScript.Modules.IO.puts(e);
+                        })],
+                    'Hello World'
+                ]
             ]
         ];
     }

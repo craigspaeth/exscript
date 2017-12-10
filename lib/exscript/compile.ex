@@ -83,7 +83,7 @@ defmodule ExScript.Compile do
         transform_assignment ast
       token == :not ->
         transform_not_operator ast
-      token in [:+, :*, :/, :-, :==, :<>, :and, :or, :||, :&&] ->
+      token in [:+, :*, :/, :-, :==, :<>, :and, :or, :||, :&&, :!=] ->
         transform_binary_expression ast
       token == :++ ->
         transform_array_concat_operator ast
@@ -102,7 +102,7 @@ defmodule ExScript.Compile do
       args == nil ->
         %{type: "Identifier", name: token}
       is_list(args) ->
-        transform_local_function_call ast
+        transform_local_function ast
       true ->
         raise "Unknown token #{token}"
     end
@@ -131,7 +131,7 @@ defmodule ExScript.Compile do
       },
       arguments: ast
         |> Tuple.to_list
-        |>Enum.map(fn (item) -> %{type: "Literal", value: item } end)
+        |> Enum.map(&transform!(&1))
     }
   end
 
@@ -139,6 +139,7 @@ defmodule ExScript.Compile do
     %{
       type: "BinaryExpression",
       operator: case token do
+        :!= -> "!=="
         :== -> "==="
         :<> -> "+"
         :and -> "&&"
@@ -295,7 +296,7 @@ defmodule ExScript.Compile do
   end
 
   defp transform_external_function_call({
-    {_, _, [{callee_name, _, namespaces}, func_name]}, _, args
+    {_, _, [{callee_name, _, namespaces}, fn_name]}, _, args
   }) when is_nil namespaces do
     %{
       type: "CallExpression",
@@ -309,7 +310,7 @@ defmodule ExScript.Compile do
         },
         property: %{
           type: "Identifier",
-          name: func_name
+          name: fn_name
         }
       }
     }
@@ -389,7 +390,20 @@ defmodule ExScript.Compile do
     }
   end
 
-  defp transform_local_function_call({func_name, _, args}) do
+  defp transform_local_function({:&, _, [{_, _, [{fn_name, _, _}, _]}]}) do
+    %{
+      type: "MemberExpression",
+      object: %{
+        type: "ThisExpression",
+      },
+      property: %{
+        type: "Identifier",
+        name: fn_name
+      }
+    }
+  end
+
+  defp transform_local_function({fn_name, _, args}) do
     %{
       type: "CallExpression",
       arguments: Enum.map(args, &transform!(&1)),
@@ -400,9 +414,8 @@ defmodule ExScript.Compile do
         },
         property: %{
           type: "Identifier",
-          name: func_name
-        },
-        arguments: []
+          name: fn_name
+        }
       }
     }
   end
