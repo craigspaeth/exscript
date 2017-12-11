@@ -52,6 +52,6 @@ defmodule View do
         [:li, "a"],
         [:li, "b"],
         [:a, [href: "hi"], [:p, "a"], [:p, "Hello World"]],
-        [:button, [onClick: fn (e) -> IO.puts(e) end], "Hello World"]]]
+        [:button, [onClick: &onclick/1], "Hello World"]]]
   end
 end

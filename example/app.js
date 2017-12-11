@@ -152,9 +152,7 @@ ExScript.Modules.View = {
                 ],
                 [
                     Symbol('button'),
-                    [new ExScript.Types.Tuple(Symbol('onClick'), e => {
-                            return ExScript.Modules.IO.puts(e);
-                        })],
+                    [new ExScript.Types.Tuple(Symbol('onClick'), this.onclick)],
                     'Hello World'
                 ]
             ]
