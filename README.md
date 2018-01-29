@@ -1,6 +1,18 @@
 # exscript
 
-Takes an Elixir AST, converts it to an ESTree JSON AST, and uses Escodegen to generate Javascript code from that. Check out the `mix run` task to test it out.
+Takes an Elixir AST, converts it to an ESTree JSON AST, and uses Escodegen to generate Javascript code from that.
+ 
+## Getting Started
+
+```
+brew install node
+npm install
+brew install elixir
+mix deps.get
+mix test
+mix example
+open exmaple/index.html
+```
 
 ## Mapping Types
 
@@ -23,12 +35,18 @@ Takes an Elixir AST, converts it to an ESTree JSON AST, and uses Escodegen to ge
 
 ## TODO
 
+### Bugs
+
+- [ ] Moduledocs unsupported
+
 ### Interop story
 
+Research more about FFIs :thinking_face:
+
 - [x] Debugger
-- JS module loading
-- Classes /shrug
-- Mutation /shrug
+- [ ] JS module loading
+- [ ] Classes /shrug
+- [ ] Mutation /shrug
 
 ### Refactoring
 

@@ -1,9 +1,12 @@
 defmodule ExScript.Compile do
 
+  @js_lib File.read!("lib/exscript/lib.js")
+  @cwd File.cwd!
+
   def compile!(code) do
     Code.compile_string code
     ast = Code.string_to_quoted! code
-    File.read!("lib/exscript/lib.js") <> to_js! ast
+    @js_lib <> to_js! ast
   end
 
   def to_js!(ast) do
@@ -11,7 +14,7 @@ defmodule ExScript.Compile do
       "process.stdout.write(" <>
       "require('escodegen').generate(#{Poison.encode! to_program_ast! ast})" <>
       ")"
-    {result, _} = System.cmd "node", ["-e", code]
+    {result, _} = System.cmd "node", ["-e", code], cd: @cwd
     result
   end
 
