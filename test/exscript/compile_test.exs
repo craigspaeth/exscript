@@ -1,7 +1,7 @@
-defmodule ExScript.CompileTest do
+defmodule ExScript.Compile.CompileTest do
   @moduledoc false
 
-  use ExUnit.Case
+  use ExUnit.Case, async: true
 
   test "surfaces elixir compile errors" do
     try do
@@ -135,156 +135,7 @@ defmodule ExScript.CompileTest do
     assert js == "null"
   end
 
-  test "compiles modules" do
-    ast = Code.string_to_quoted! """
-    defmodule Hello.World do
-      def hi, do: "hi"
-      def bai, do: 1 + 1
-    end
-    """
-    js = ExScript.Compile.to_js! ast
-    assert js <> "\n" == """
-    ExScript.Modules.HelloWorld = {
-        hi() {
-            return 'hi';
-        },
-        bai() {
-            return 1 + 1;
-        }
-    }
-    """
-  end
-
-  test "compiles module function args in the right order" do
-    ast = Code.string_to_quoted! """
-    defmodule Hello.World do
-      def hi(a, b) do
-        a
-      end
-    end
-    """
-    js = ExScript.Compile.to_js! ast
-    assert js <> "\n" == """
-    ExScript.Modules.HelloWorld = {
-        hi(a, b) {
-            return a;
-        }
-    }
-    """
-  end
-
-  test "compiles multiline module functions" do
-    ast = Code.string_to_quoted! """
-    defmodule Hello.World do
-      def hi do
-        a = 1
-        a
-      end
-    end
-    """
-    js = ExScript.Compile.to_js! ast
-    assert js <> "\n" == """
-    ExScript.Modules.HelloWorld = {
-        hi() {
-            const a = 1;
-            return a;
-        }
-    }
-    """
-  end
-
-  test "compiles basic function calls" do
-    js = ExScript.Compile.to_js! quote do: IO.puts("a")
-    assert js <> "\n" == """
-    ExScript.Modules.IO.puts('a')
-    """
-  end
-
-  test "compiles external module function calls" do
-    ast = Code.string_to_quoted! """
-    defmodule Hello do
-      def world(str), do: "World" <> str
-    end
-    defmodule Main do
-      def init do
-        Hello.world("Earth")
-      end
-    end
-    """
-    js = ExScript.Compile.to_js! ast
-    assert js <> "\n" == """
-    ExScript.Modules.Hello = {
-        world(str) {
-            return 'World' + str;
-        }
-    };
-    ExScript.Modules.Main = {
-        init() {
-            return ExScript.Modules.Hello.world('Earth');
-        }
-    };
-    """
-  end
-
-  test "compiles property function calls" do
-    ast = Code.string_to_quoted! """
-    defmodule Hello do
-      def world(mod) do
-        mod.fun("a")
-      end
-    end
-    """
-    js = ExScript.Compile.to_js! ast
-    assert js <> "\n" == """
-    ExScript.Modules.Hello = {
-        world(mod) {
-            return mod.fun('a');
-        }
-    }
-    """
-  end
-
-  test "compiles dynamic property access" do
-    ast = Code.string_to_quoted! """
-    fn () ->
-      foo = %{foo: "bar"}
-      key = "bar"
-      foo[key]
-    end
-    """
-    js = ExScript.Compile.to_js! ast
-    assert js <> "\n" == """
-    () => {
-        const foo = { foo: 'bar' };
-        const key = 'bar';
-        return foo[key];
-    }
-    """
-  end
-
-  test "compiles dynamic property access with function calls" do
-    ast = Code.string_to_quoted! """
-    defmodule Hello do
-      def bar, do: "prop"
-      def foo(a) do
-        a.foo[bar()].baz "bam"
-      end
-    end
-    """
-    js = ExScript.Compile.to_js! ast
-    assert js <> "\n" == """
-    ExScript.Modules.Hello = {
-        bar() {
-            return 'prop';
-        },
-        foo(a) {
-            return a.foo[this.bar()].baz('bam');
-        }
-    }
-    """
-  end
-
-  test "compiles local function calls" do
+  test "compiles lexically local function calls" do
     ast = Code.string_to_quoted! """
     a = fn () -> "foo" end
     a.()
@@ -477,50 +328,6 @@ defmodule ExScript.CompileTest do
     ];
     """
   end
-
-  test "compiles local functions" do
-    ast = Code.string_to_quoted! """
-    defmodule Hello.World do
-      def hi, do: bai()
-      def bai, do: "bai"
-    end
-    """
-    js = ExScript.Compile.to_js! ast
-    assert js <> "\n" == """
-    ExScript.Modules.HelloWorld = {
-        hi() {
-            return this.bai();
-        },
-        bai() {
-            return 'bai';
-        }
-    }
-    """
-  end
-
-  test "compiles local function references" do
-    ast = Code.string_to_quoted! """
-    defmodule Hello.World do
-      def hi, do: [:a, &bai/1]
-      def bai, do: "bai"
-    end
-    """
-    js = ExScript.Compile.to_js! ast
-    assert js <> "\n" == """
-    ExScript.Modules.HelloWorld = {
-        hi() {
-            return [
-                Symbol('a'),
-                this.bai
-            ];
-        },
-        bai() {
-            return 'bai';
-        }
-    }
-    """
-  end
-
 
   test "compiles tuple pattern matching" do
     ast = Code.string_to_quoted! """

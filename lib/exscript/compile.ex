@@ -1,7 +1,9 @@
 defmodule ExScript.Compile do
+  import ExScript.Transformers.Modules
 
   @js_lib File.read!("lib/exscript/lib.js")
   @cwd File.cwd!
+
 
   def compile!(code) do
     Code.compile_string code
@@ -30,7 +32,7 @@ defmodule ExScript.Compile do
     end
   end
 
-  defp transform!(ast) do
+  def transform!(ast) do
     cond do
       is_tuple ast ->
         try do
@@ -46,6 +48,8 @@ defmodule ExScript.Compile do
               end
             token == :__aliases__ ->
               transform_module_reference ast
+            token == :@ ->
+              transform_module_attribute ast
             true ->
               transform_non_literal ast
           end
@@ -68,6 +72,12 @@ defmodule ExScript.Compile do
       true ->
         raise "Unknown AST #{ast}"
     end
+  end
+
+  def transform_list(list) do
+    list
+    |> Enum.map(&transform!(&1))
+    |> Enum.reject(&is_nil/1)
   end
 
   defp transform_non_literal({token, callee, args} = ast) do
@@ -168,7 +178,7 @@ defmodule ExScript.Compile do
   defp transform_block_statement({_, _, args}) do
     %{
       type: "BlockStatement",
-      body: Enum.map(args, &transform!(&1))
+      body: transform_list args
     }
   end
 
@@ -234,47 +244,6 @@ defmodule ExScript.Compile do
           value: transform!(val)
         }
       end
-    }
-  end
-
-  def transform_module({_, _, args}) do
-    [{_, _, namespaces} | [body]] = args
-    [{_, method_or_methods} | _] = body
-    {key, _, _} = method_or_methods
-    methods = if key == :__block__ do
-      {_, _, methods} = method_or_methods
-      methods
-    else
-      [method_or_methods]
-    end
-    namespace = Enum.join namespaces, ""
-    %{
-      type: "AssignmentExpression",
-      operator: "=",
-      left: %{
-        type: "MemberExpression",
-        object: %{
-          type: "MemberExpression",
-          object: %{type: "Identifier", name: "ExScript"},
-          property: %{type: "Identifier", name: "Modules"}
-        },
-        property: %{type: "Identifier", name: namespace}
-      },
-      right: %{
-        type: "ObjectExpression",
-        properties: for method <- methods do
-          {_, _, body} = method
-          [{method_name, _, args}, [{_, return_val}]] = body
-          %{
-            type: "Property",
-            method: true,
-            shorthand: false,
-            computed: false,
-            key: %{type: "Identifier", name: method_name},
-            value: function_expression(:obj, args, return_val)
-          }
-        end
-      }
     }
   end
 
@@ -393,36 +362,6 @@ defmodule ExScript.Compile do
     }
   end
 
-  defp transform_local_function({:&, _, [{_, _, [{fn_name, _, _}, _]}]}) do
-    %{
-      type: "MemberExpression",
-      object: %{
-        type: "ThisExpression",
-      },
-      property: %{
-        type: "Identifier",
-        name: fn_name
-      }
-    }
-  end
-
-  defp transform_local_function({fn_name, _, args}) do
-    %{
-      type: "CallExpression",
-      arguments: Enum.map(args, &transform!(&1)),
-      callee: %{
-        type: "MemberExpression",
-        object: %{
-          type: "ThisExpression",
-        },
-        property: %{
-          type: "Identifier",
-          name: fn_name
-        }
-      }
-    }
-  end
-
   defp transform_if({_, _, [test, [{_, consequent}, {_, alternate}]]}) do
     expr = fn (body) ->
       if is_tuple(body) do
@@ -506,10 +445,6 @@ defmodule ExScript.Compile do
     )
   end
 
-  defp transform_module_reference({_, _, [mod_name]}) do
-    module_namespace mod_name
-  end
-
   defp transform_string_interpolation({_, _, elements}) do
     els = List.flatten(for el <- elements do
       case el do
@@ -550,7 +485,7 @@ defmodule ExScript.Compile do
       quasis: quasis
     }
   end
-
+  
   defp nested_if_statement(if_elses, index \\ 0) do
     if index >= length if_elses do
       nil
@@ -565,7 +500,7 @@ defmodule ExScript.Compile do
     end
   end
 
-  defp function_expression(type, args, return_val) do
+  def function_expression(type, args, return_val) do
     args = args || []
     %{
       type: case type do
@@ -654,60 +589,6 @@ defmodule ExScript.Compile do
     else
       [%{type: "ReturnStatement", argument: transform!(ast)}]
     end
-  end
-
-  defp module_function_call(mod_name, fn_name, args) do
-    if fn_name == :embed do
-      [code] = args
-      cmd = "echo \"#{code}\" | node_modules/.bin/acorn"
-      js_ast = Poison.decode! :os.cmd String.to_charlist cmd
-      [first] = js_ast["body"]
-      first
-    else
-      is_computed = fn_name |> Atom.to_string() |> String.contains?("?")
-      %{
-        type: "CallExpression",
-        arguments: Enum.map(args, &transform!(&1)),
-        callee: %{
-          type: "MemberExpression",
-          object: module_namespace(mod_name),
-          property: if is_computed do
-            %{
-              type: "Literal",
-              value: fn_name,
-              raw: fn_name
-            }
-          else
-            %{
-              type: "Identifier",
-              name: fn_name
-            }
-          end,
-          computed: is_computed
-        }
-      }
-    end
-  end
-
-  defp module_namespace(mod_name) do
-    %{
-      type: "MemberExpression",
-      object: %{
-        type: "MemberExpression",
-        object: %{
-          type: "Identifier",
-          name: "ExScript"
-        },
-        property: %{
-          type: "MemberExpression",
-          name: "Modules"
-        }
-      },
-      property: %{
-        type: "MemberExpression",
-        name: mod_name
-      }
-    }
   end
 
   defp iife(body) do
