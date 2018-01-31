@@ -11,7 +11,7 @@ brew install elixir
 mix deps.get
 mix test
 mix example
-open exmaple/index.html
+open example/index.html
 ```
 
 ## Mapping Types
@@ -38,6 +38,7 @@ open exmaple/index.html
 ### Bugs
 
 - [ ] Moduledocs unsupported
+- [ ] External module references
 
 ### Interop story
 
