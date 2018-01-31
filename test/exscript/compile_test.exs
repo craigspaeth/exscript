@@ -149,7 +149,6 @@ defmodule ExScript.Compile.CompileTest do
     """
   end
 
-
   test "compiles list ++ operators" do
     ast = Code.string_to_quoted! "[1, 2] ++ [3, 4]"
     js = ExScript.Compile.to_js! ast
@@ -161,6 +160,14 @@ defmodule ExScript.Compile.CompileTest do
         3,
         4
     ])
+    """
+  end
+
+  test "compiles list > operators" do
+    ast = Code.string_to_quoted! "1 > 2"
+    js = ExScript.Compile.to_js! ast
+    assert js <> "\n" == """
+    1 > 2
     """
   end
 

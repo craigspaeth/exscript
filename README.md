@@ -37,7 +37,7 @@ open example/index.html
 
 ### Bugs
 
-- [ ] Moduledocs unsupported
+- [x] Moduledocs unsupported
 - [ ] External module references
 
 ### Interop story

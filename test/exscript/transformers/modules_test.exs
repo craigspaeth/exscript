@@ -205,7 +205,6 @@ defmodule ExScript.Compiler.ModulesTest do
     """
   end
 
-  @tag :cur
   test "compiles moduledocs" do
     ast = Code.string_to_quoted! """
     defmodule Hi do

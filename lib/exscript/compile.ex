@@ -1,5 +1,6 @@
 defmodule ExScript.Compile do
   import ExScript.Transformers.Modules
+  import ExScript.Transformers.Comprehensions
 
   @js_lib File.read!("lib/exscript/lib.js")
   @cwd File.cwd!
@@ -50,6 +51,8 @@ defmodule ExScript.Compile do
               transform_module_reference ast
             token == :@ ->
               transform_module_attribute ast
+            token == :for ->
+              transform_comprehension ast
             true ->
               transform_non_literal ast
           end
@@ -96,7 +99,7 @@ defmodule ExScript.Compile do
         transform_assignment ast
       token == :not ->
         transform_not_operator ast
-      token in [:+, :*, :/, :-, :==, :<>, :and, :or, :||, :&&, :!=] ->
+      token in [:+, :*, :/, :-, :==, :<>, :and, :or, :||, :&&, :!=, :>] ->
         transform_binary_expression ast
       token == :++ ->
         transform_array_concat_operator ast
@@ -558,7 +561,7 @@ defmodule ExScript.Compile do
     }
   end
 
-  defp return_block(ast) do
+  def return_block(ast) do
     cond do
       is_tuple ast ->
         {key, _, body} = ast
