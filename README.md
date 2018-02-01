@@ -1,7 +1,7 @@
 # exscript
 
 Takes an Elixir AST, converts it to an ESTree JSON AST, and uses Escodegen to generate Javascript code from that.
- 
+
 ## Getting Started
 
 ```
@@ -38,7 +38,8 @@ open example/index.html
 ### Bugs
 
 - [x] Moduledocs unsupported
-- [ ] External module references
+- [x] External module references
+- [ ] Support alias, require, import
 
 ### Interop story
 

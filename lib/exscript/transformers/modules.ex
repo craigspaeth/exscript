@@ -2,7 +2,7 @@ defmodule ExScript.Transformers.Modules do
   @moduledoc """
   Transforms module (and module-related) Elixir ASTs to ESTree JSON
   """
-  
+
   alias ExScript.Compile, as: Compile
 
   def transform_module({_, _, args}) do
@@ -47,8 +47,8 @@ defmodule ExScript.Transformers.Modules do
     }
   end
 
-  def transform_module_reference({_, _, [mod_name]}) do
-    module_namespace mod_name
+  def transform_module_reference({_, _, namespaces}) do
+    module_namespace Enum.join namespaces
   end
 
   def transform_module_attribute({_, _, [{attr_type, _, _}]}= ast) do
