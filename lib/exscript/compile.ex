@@ -42,7 +42,9 @@ defmodule ExScript.Compile do
             is_tuple token ->
               {_, _, parent} = token
               case parent do
-                {:__aliases__, _,} ->
+                {:__aliases__, _, _} ->
+                  transform_external_function_call ast
+                [{:__aliases__, _, _}, _] ->
                   transform_external_function_call ast
                 _ ->
                   transform_property_access ast
@@ -444,7 +446,7 @@ defmodule ExScript.Compile do
     module_function_call(
       mod_name,
       fn_name,
-      [arg | extra_args] 
+      [arg | extra_args]
     )
   end
 
@@ -467,7 +469,7 @@ defmodule ExScript.Compile do
               {:quasis, template_el}
             ]
           else
-            [{:expression, transform! interpolated_ast}]  
+            [{:expression, transform! interpolated_ast}]
           end
         _ ->
           template_el = %{
@@ -488,7 +490,7 @@ defmodule ExScript.Compile do
       quasis: quasis
     }
   end
-  
+
   defp nested_if_statement(if_elses, index \\ 0) do
     if index >= length if_elses do
       nil
