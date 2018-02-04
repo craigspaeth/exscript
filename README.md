@@ -39,7 +39,10 @@ open example/index.html
 
 - [x] Moduledocs unsupported
 - [x] External module references
+- [ ] Need immutability story, e.g. assigning the same var twice in a block errors, let vs const?
+- [ ] Need StdLib story (FFIs or compile Elixir StdLib?)
 - [ ] Support alias, require, import
+- [ ] Suport `defp`
 
 ### Interop story
 
@@ -54,9 +57,6 @@ Research more about FFIs :thinking_face:
 
 - Break up into module around Elixir primatives or chapter heads in the guide (Basic types, Basic operators, etc.)
 - Hoist ExScript namespace to top of module
-- Figure out standard lib story (compile from Elixir src, testing, etc?)
-- let instead of const
-- Ensure all variables are being copied
 - Anonymous functions on single line use ES6 shorthand
 - Ternery with one expression doesn't need closure
 
@@ -68,4 +68,4 @@ Research more about FFIs :thinking_face:
 
 ### Self hosting
 
-- Somehow remove the dependency on Node (acor, escodegen, and node -e)
+- Somehow remove the dependency on Node (acorn, escodegen, and node -e)
