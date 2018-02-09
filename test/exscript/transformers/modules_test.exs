@@ -222,7 +222,6 @@ defmodule ExScript.Compiler.ModulesTest do
     """
   end
 
-  @tag :cur
   test "compiles nested module references" do
     ast = Code.string_to_quoted! """
     defmodule Hello.Earth do
@@ -244,6 +243,17 @@ defmodule ExScript.Compiler.ModulesTest do
             return ExScript.Modules.HelloEarth.hi();
         }
     };
+    """
+  end
+
+  @tag :cur
+  test "hoists the namepsace for readability" do
+    ast = Code.string_to_quoted! """
+    IO.puts "hi"
+    """
+    js = ExScript.Compile.to_js! ast
+    assert js <> "\n" == """
+    IO.puts('hi')
     """
   end
 end
