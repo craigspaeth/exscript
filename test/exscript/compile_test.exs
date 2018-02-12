@@ -25,13 +25,13 @@ defmodule ExScript.Compile.CompileTest do
 
   test "compiles kernel functions" do
     js = ExScript.Compile.to_js! quote do: is_boolean(true)
-    assert js == "ExScript.Modules.Kernel.is_boolean(true)"
+    assert js == "Kernel.is_boolean(true)"
     js = ExScript.Compile.to_js! quote do: is_list(true)
-    assert js == "ExScript.Modules.Kernel.is_list(true)"
+    assert js == "Kernel.is_list(true)"
     js = ExScript.Compile.to_js! quote do: is_nil(true)
-    assert js == "ExScript.Modules.Kernel.is_nil(true)"
+    assert js == "Kernel.is_nil(true)"
     js = ExScript.Compile.to_js! quote do: length("a")
-    assert js == "ExScript.Modules.Kernel.length('a')"
+    assert js == "Kernel.length('a')"
   end
 
   test "compiles kernel functions in function body" do
@@ -44,7 +44,7 @@ defmodule ExScript.Compile.CompileTest do
   assert js <> "\n" == """
   () => {
       const a = 1;
-      return ExScript.Modules.Kernel.length(a);
+      return Kernel.length(a);
   }
   """
   end
@@ -116,7 +116,7 @@ defmodule ExScript.Compile.CompileTest do
   test "compiles maps" do
     js = ExScript.Compile.to_js! quote do: %{foo: IO.puts()}
     assert js <> "\n" == """
-    { foo: ExScript.Modules.IO.puts() }
+    { foo: IO.puts() }
     """
   end
 
@@ -304,14 +304,14 @@ defmodule ExScript.Compile.CompileTest do
   test "compiles pipeline operator" do
     js = ExScript.Compile.to_js! quote do: "a" |> IO.puts
     assert js <> "\n" == """
-    ExScript.Modules.IO.puts('a')
+    IO.puts('a')
     """
   end
 
   test "compiles pipeline operator with extra args" do
     js = ExScript.Compile.to_js! quote do: "a,b" |> String.split(",")
     assert js <> "\n" == """
-    ExScript.Modules.String.split('a,b', ',')
+    String.split('a,b', ',')
     """
   end
 
@@ -352,7 +352,7 @@ defmodule ExScript.Compile.CompileTest do
     """
     js = ExScript.Compile.to_js! ast
     assert js <> "\n" == """
-    ExScript.Modules.IO.puts(ExScript.Modules.IO)
+    IO.puts(IO)
     """
   end
 
@@ -388,7 +388,7 @@ defmodule ExScript.Compile.CompileTest do
 
   test "compiles advanced not operators" do
     js = ExScript.Compile.to_js! quote do: if not IO.puts(), do: "hi", else: "bai"
-    assert js == "!ExScript.Modules.IO.puts() ? 'hi' : 'bai'"
+    assert js == "!IO.puts() ? 'hi' : 'bai'"
   end
 
   test "compiles embedded code" do
@@ -423,7 +423,7 @@ defmodule ExScript.Compile.CompileTest do
 
   test "compiles ? functions smartly" do
     js = ExScript.Compile.to_js! quote do: Keyword.keyword?("a")
-    assert js == "ExScript.Modules.Keyword['keyword?']('a')"
+    assert js == "Keyword['keyword?']('a')"
   end
 
   test "compiles map pattern matching in function arguments" do
@@ -489,7 +489,7 @@ defmodule ExScript.Compile.CompileTest do
         })];
     """
   end
-  
+
   @tag :skip
   test "compiles ==, !=, ===, !==, <=, >=, <, and > operators" do
   end

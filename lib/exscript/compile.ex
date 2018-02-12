@@ -22,11 +22,13 @@ defmodule ExScript.Compile do
   end
 
   defp to_program_ast!(ast) do
+    ExScript.State.init
     if is_tuple(ast) and Enum.at(Tuple.to_list(ast), 0) == :__block__ do
       {_, _, body} = ast
       body = Enum.map body, fn (ast) ->
         %{type: "ExpressionStatement", expression: transform!(ast)}
       end
+      body = if is_nil(module_namespaces), do: body, else: [module_namespaces] ++ body
       %{type: "Program", body: body}
     else
       transform! ast
@@ -72,7 +74,7 @@ defmodule ExScript.Compile do
       is_list ast ->
         %{
           type: "ArrayExpression",
-          elements: Enum.map(ast, &transform!(&1))
+          elements: transform_list(ast)
         }
       true ->
         raise "Unknown AST #{ast}"

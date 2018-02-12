@@ -3,7 +3,6 @@ defmodule ExScript.Compiler.ComprehensionsTest do
 
   use ExUnit.Case, async: true
 
-  @tag :cur
   test "compiles comprehensions" do
     ast = Code.string_to_quoted! """
     c = [1, 2]
