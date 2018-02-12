@@ -64,7 +64,7 @@ defmodule ExScript.Compiler.ModulesTest do
   test "compiles basic function calls" do
     js = ExScript.Compile.to_js! quote do: IO.puts("a")
     assert js <> "\n" == """
-    ExScript.Modules.IO.puts('a')
+    IO.puts('a')
     """
   end
 
@@ -81,6 +81,7 @@ defmodule ExScript.Compiler.ModulesTest do
     """
     js = ExScript.Compile.to_js! ast
     assert js <> "\n" == """
+    const {Hello} = ExScript.Modules;
     ExScript.Modules.Hello = {
         world(str) {
             return 'World' + str;
@@ -88,7 +89,7 @@ defmodule ExScript.Compiler.ModulesTest do
     };
     ExScript.Modules.Main = {
         init() {
-            return ExScript.Modules.Hello.world('Earth');
+            return Hello.world('Earth');
         }
     };
     """
@@ -201,7 +202,7 @@ defmodule ExScript.Compiler.ModulesTest do
     """
     js = ExScript.Compile.to_js! ast
     assert js <> "\n" == """
-    ExScript.Modules.IO.puts(ExScript.Modules.IO)
+    IO.puts(IO)
     """
   end
 
@@ -233,6 +234,7 @@ defmodule ExScript.Compiler.ModulesTest do
     """
     js = ExScript.Compile.to_js! ast
     assert js <> "\n" == """
+    const {HelloEarth} = ExScript.Modules;
     ExScript.Modules.HelloEarth = {
         hi() {
             return 'hi';
@@ -240,20 +242,22 @@ defmodule ExScript.Compiler.ModulesTest do
     };
     ExScript.Modules.HelloMars = {
         hi() {
-            return ExScript.Modules.HelloEarth.hi();
+            return HelloEarth.hi();
         }
     };
     """
   end
 
-  @tag :cur
   test "hoists the namepsace for readability" do
     ast = Code.string_to_quoted! """
-    IO.puts "hi"
+    IO.puts "foo"
+    JS.log "bar"
     """
     js = ExScript.Compile.to_js! ast
     assert js <> "\n" == """
-    IO.puts('hi')
+    const {IO, JS} = ExScript.Modules;
+    IO.puts('foo');
+    JS.log('bar');
     """
   end
 end

@@ -9,14 +9,18 @@ defmodule ExScript.Transformers.Modules do
     [{_, _, namespaces} | [body]] = args
     [{_, method_or_methods} | _] = body
     {key, _, _} = method_or_methods
-    methods = if key == :__block__ do
-      {_, _, methods} = method_or_methods
-      methods
-    else
-      [method_or_methods]
-    end
-    methods = Enum.filter methods, fn ({key, _, _}) -> key == :def end
-    namespace = Enum.join namespaces, ""
+
+    methods =
+      if key == :__block__ do
+        {_, _, methods} = method_or_methods
+        methods
+      else
+        [method_or_methods]
+      end
+
+    methods = Enum.filter(methods, fn {key, _, _} -> key == :def end)
+    namespace = Enum.join(namespaces, "")
+
     %{
       type: "AssignmentExpression",
       operator: "=",
@@ -31,27 +35,34 @@ defmodule ExScript.Transformers.Modules do
       },
       right: %{
         type: "ObjectExpression",
-        properties: for method <- methods do
-          {_, _, body} = method
-          [{method_name, _, args}, [{_, return_val}]] = body
-          %{
-            type: "Property",
-            method: true,
-            shorthand: false,
-            computed: false,
-            key: %{type: "Identifier", name: method_name},
-            value: Compile.function_expression(:obj, args, return_val)
-          }
-        end
+        properties:
+          for method <- methods do
+            {_, _, body} = method
+            [{method_name, _, args}, [{_, return_val}]] = body
+
+            %{
+              type: "Property",
+              method: true,
+              shorthand: false,
+              computed: false,
+              key: %{type: "Identifier", name: method_name},
+              value: Compile.function_expression(:obj, args, return_val)
+            }
+          end
       }
     }
   end
 
   def transform_module_reference({_, _, namespaces}) do
-    module_namespace Enum.join namespaces
+    mod_name = Enum.join(namespaces)
+    ExScript.State.hoist_module_namespace mod_name
+    %{
+      type: "Identifier",
+      name: mod_name
+    }
   end
 
-  def transform_module_attribute({_, _, [{attr_type, _, _}]}= ast) do
+  def transform_module_attribute({_, _, [{attr_type, _, _}]} = ast) do
     case attr_type do
       :moduledoc -> nil
     end
@@ -61,7 +72,7 @@ defmodule ExScript.Transformers.Modules do
     %{
       type: "MemberExpression",
       object: %{
-        type: "ThisExpression",
+        type: "ThisExpression"
       },
       property: %{
         type: "Identifier",
@@ -77,7 +88,7 @@ defmodule ExScript.Transformers.Modules do
       callee: %{
         type: "MemberExpression",
         object: %{
-          type: "ThisExpression",
+          type: "ThisExpression"
         },
         property: %{
           type: "Identifier",
@@ -87,57 +98,76 @@ defmodule ExScript.Transformers.Modules do
     }
   end
 
-  def module_namespace(mod_name) do
-    %{
-      type: "MemberExpression",
-      object: %{
-        type: "MemberExpression",
-        object: %{
-          type: "Identifier",
-          name: "ExScript"
-        },
-        property: %{
-          type: "MemberExpression",
-          name: "Modules"
-        }
-      },
-      property: %{
-        type: "MemberExpression",
-        name: mod_name
-      }
-    }
-  end
-
   def module_function_call(mod_name, fn_name, args) do
+    ExScript.State.hoist_module_namespace mod_name
     if fn_name == :embed do
       [code] = args
       cmd = "echo \"#{code}\" | node_modules/.bin/acorn"
-      js_ast = Poison.decode! :os.cmd String.to_charlist cmd
+      js_ast = Poison.decode!(:os.cmd(String.to_charlist(cmd)))
       [first] = js_ast["body"]
       first
     else
       is_computed = fn_name |> Atom.to_string() |> String.contains?("?")
+
       %{
         type: "CallExpression",
         arguments: Compile.transform_list(args),
         callee: %{
           type: "MemberExpression",
-          object: module_namespace(mod_name),
-          property: if is_computed do
-            %{
-              type: "Literal",
-              value: fn_name,
-              raw: fn_name
-            }
-          else
-            %{
-              type: "Identifier",
-              name: fn_name
-            }
-          end,
+          object: %{
+            type: "Identifier",
+            name: mod_name
+          },
+          property:
+            if is_computed do
+              %{
+                type: "Literal",
+                value: fn_name,
+                raw: fn_name
+              }
+            else
+              %{
+                type: "Identifier",
+                name: fn_name
+              }
+            end,
           computed: is_computed
         }
       }
+    end
+  end
+
+  def module_namespaces do
+    mod_names = ExScript.State.module_namespaces
+    if length(mod_names) > 0 do
+      %{
+        declarations: [
+          %{
+            id: %{
+              properties:  for name <- mod_names do
+                %{
+                  key: %{name: name, type: "Identifier"},
+                  kind: "init",
+                  shorthand: true,
+                  type: "Property",
+                  value: %{name: name, type: "Identifier"}
+                }
+              end,
+              type: "ObjectPattern"
+            },
+            init: %{
+              object: %{name: "ExScript", type: "Identifier"},
+              property: %{name: "Modules", type: "Identifier"},
+              type: "MemberExpression"
+            },
+            type: "VariableDeclarator"
+          }
+        ],
+        kind: "const",
+        type: "VariableDeclaration"
+      }
+    else
+      nil
     end
   end
 end
