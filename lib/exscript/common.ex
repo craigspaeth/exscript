@@ -6,7 +6,8 @@ defmodule ExScript.Common do
   alias ExScript.Compile, as: Compile
 
   def module_function_call(mod_name, fn_name, args) do
-    ExScript.State.hoist_module_namespace mod_name
+    ExScript.State.hoist_module_namespace(mod_name)
+
     if fn_name == :embed do
       [code] = args
       cmd = "echo \"#{code}\" | node_modules/.bin/acorn"
@@ -46,16 +47,20 @@ defmodule ExScript.Common do
 
   def return_block(ast) do
     cond do
-      is_tuple ast ->
+      is_tuple(ast) ->
         {key, _, body} = ast
+
         case key do
           :__block__ ->
-            [return_line | fn_lines] = Enum.reverse body
+            [return_line | fn_lines] = Enum.reverse(body)
+
             Enum.map(Enum.reverse(fn_lines), &Compile.transform!(&1)) ++
-            dont_return_assignment(return_line)
+              dont_return_assignment(return_line)
+
           _ ->
-            dont_return_assignment ast
+            dont_return_assignment(ast)
         end
+
       true ->
         [%{type: "ReturnStatement", argument: Compile.transform!(ast)}]
     end
@@ -78,66 +83,75 @@ defmodule ExScript.Common do
 
   def function_expression(type, args, return_val) do
     args = args || []
+
     %{
-      type: case type do
-        :arrow -> "ArrowFunctionExpression"
-        :obj -> "FunctionExpression"
-      end,
-      params: Enum.map(args, fn (ast) ->
-        case ast do
-          {_, _, [{key_name, {val_name, _, _}}]} ->
-            %{
-              type: "ObjectPattern",
-              properties: [
-                %{
-                  type: "Property",
-                  key: %{
-                    type: "Identifier",
-                    name: key_name
-                  },
-                  value: %{
-                    type: "Identifier",
-                    name: val_name
+      type:
+        case type do
+          :arrow -> "ArrowFunctionExpression"
+          :obj -> "FunctionExpression"
+        end,
+      params:
+        Enum.map(args, fn ast ->
+          case ast do
+            {_, _, [{key_name, {val_name, _, _}}]} ->
+              %{
+                type: "ObjectPattern",
+                properties: [
+                  %{
+                    type: "Property",
+                    key: %{
+                      type: "Identifier",
+                      name: key_name
+                    },
+                    value: %{
+                      type: "Identifier",
+                      name: val_name
+                    }
                   }
-                }
-              ]
-            }
-          {{left_name, _, _}, {right_name, _, _}} ->
-            %{
-              type: "ArrayPattern",
-              elements: [
-                %{
-                  type: "Identifier",
-                  name: left_name
-                },
-                %{
-                  type: "Identifier",
-                  name: right_name
-                }
-              ]
-            }
-          {:{}, _, els} ->
-            %{
-              type: "ArrayPattern",
-              elements: Enum.map(els, fn ({name, _, _}) ->
-                %{
-                  type: "Identifier",
-                  name: name
-                }
-              end)
-            }
-          {var_name, _, _} ->
-            %{type: "Identifier", name: var_name}
-        end
-      end),
+                ]
+              }
+
+            {{left_name, _, _}, {right_name, _, _}} ->
+              %{
+                type: "ArrayPattern",
+                elements: [
+                  %{
+                    type: "Identifier",
+                    name: left_name
+                  },
+                  %{
+                    type: "Identifier",
+                    name: right_name
+                  }
+                ]
+              }
+
+            {:{}, _, els} ->
+              %{
+                type: "ArrayPattern",
+                elements:
+                  Enum.map(els, fn {name, _, _} ->
+                    %{
+                      type: "Identifier",
+                      name: name
+                    }
+                  end)
+              }
+
+            {var_name, _, _} ->
+              %{type: "Identifier", name: var_name}
+          end
+        end),
       body: %{type: "BlockStatement", body: return_block(return_val)}
     }
   end
 
   defp dont_return_assignment(ast) do
     {key, _, body} = ast
+
     if key == := do
       [{var_name, _, _}, _] = body
+
       [
         Compile.transform!(ast),
         %{

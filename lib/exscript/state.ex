@@ -4,21 +4,28 @@ defmodule ExScript.State do
   namespaces that need to be hoisted to the top of a program.
   """
 
+  @init_state %{
+    modules: []
+  }
+
   def init do
-    Agent.start_link fn ->
-      %{
-        modules: []
-      }
-    end, name: __MODULE__
+    Agent.start_link(
+      fn -> @init_state end,
+      name: __MODULE__
+    )
   end
 
   def hoist_module_namespace(mod_name) do
-    Agent.update __MODULE__, fn state ->
-      %{state | modules: state.modules ++ [mod_name]}
-    end
+    Agent.update(__MODULE__, fn state ->
+      %{state | modules: Enum.uniq(state.modules ++ [mod_name])}
+    end)
   end
 
   def module_namespaces do
     Agent.get(__MODULE__, fn state -> state.modules end)
+  end
+
+  def clear do
+    Agent.update(__MODULE__, fn _ -> @init_state end)
   end
 end

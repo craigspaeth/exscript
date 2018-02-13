@@ -56,14 +56,15 @@ defmodule ExScript.Transformers.Modules do
 
   def transform_module_reference({_, _, namespaces}) do
     mod_name = Enum.join(namespaces)
-    ExScript.State.hoist_module_namespace mod_name
+    ExScript.State.hoist_module_namespace(mod_name)
+
     %{
       type: "Identifier",
       name: mod_name
     }
   end
 
-  def transform_module_attribute({_, _, [{attr_type, _, _}]} = ast) do
+  def transform_module_attribute({_, _, [{attr_type, _, _}]}) do
     case attr_type do
       :moduledoc -> nil
     end
@@ -100,21 +101,23 @@ defmodule ExScript.Transformers.Modules do
   end
 
   def module_namespaces do
-    mod_names = ExScript.State.module_namespaces
+    mod_names = ExScript.State.module_namespaces()
+
     if length(mod_names) > 0 do
       %{
         declarations: [
           %{
             id: %{
-              properties:  for name <- mod_names do
-                %{
-                  key: %{name: name, type: "Identifier"},
-                  kind: "init",
-                  shorthand: true,
-                  type: "Property",
-                  value: %{name: name, type: "Identifier"}
-                }
-              end,
+              properties:
+                for name <- mod_names do
+                  %{
+                    key: %{name: name, type: "Identifier"},
+                    kind: "init",
+                    shorthand: true,
+                    type: "Property",
+                    value: %{name: name, type: "Identifier"}
+                  }
+                end,
               type: "ObjectPattern"
             },
             init: %{

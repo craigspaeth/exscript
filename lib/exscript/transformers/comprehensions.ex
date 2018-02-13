@@ -6,8 +6,9 @@ defmodule ExScript.Transformers.Comprehensions do
   alias ExScript.Compile, as: Compile
   alias ExScript.Common, as: Common
 
-  def transform_comprehension({_, _, for_ast} = ast) do
+  def transform_comprehension({_, _, for_ast}) do
     [{_, _, [left, enum]}, [do: block]] = for_ast
+
     %{
       type: "CallExpression",
       callee: %{

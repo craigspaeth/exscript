@@ -13,3 +13,10 @@ mix test
 mix example
 open example/index.html
 ```
+
+Before contributing:
+
+```
+mix test
+mix format mix.exs "lib/**/*.{ex,exs}" "test/**/*.{exs}"
+```
