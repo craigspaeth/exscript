@@ -1,4 +1,5 @@
 defmodule ExScript.Compile do
+  import ExScript.Common
   import ExScript.Transformers.Modules
   import ExScript.Transformers.Comprehensions
   import ExScript.Transformers.Functions
@@ -169,9 +170,8 @@ defmodule ExScript.Compile do
   end
 
   defp transform_block_statement({_, _, args}) do
-    %{
-      type: "BlockStatement",
-      body: transform_list!(args)
-    }
+    with_declared_vars(fn ->
+      transform_list!(args)
+    end)
   end
 end

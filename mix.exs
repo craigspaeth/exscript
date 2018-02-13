@@ -26,7 +26,8 @@ defmodule ExScript.Mixfile do
   def deps do
     [
       {:poison, "~> 2.2"},
-      {:mix_test_watch, "~> 0.3", only: [:dev, :test], runtime: false}
+      {:mix_test_watch, "~> 0.3", only: [:dev, :test], runtime: false},
+      {:uuid, "~> 1.1"}
     ]
   end
 end
