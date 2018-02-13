@@ -27,8 +27,9 @@ defmodule ExScript.Transformers.Types do
           name: "Tuple"
         }
       },
-      arguments: ast
-        |> Tuple.to_list
+      arguments:
+        ast
+        |> Tuple.to_list()
         |> Enum.map(&Compile.transform!(&1))
     }
   end
@@ -36,19 +37,23 @@ defmodule ExScript.Transformers.Types do
   def transform_map({_, _, args}) do
     %{
       type: "ObjectExpression",
-      properties: for {key, val} <- args do
-        %{
-          type: "Property",
-          key: %{type: "Identifier", name: key},
-          value: Compile.transform!(val)
-        }
-      end
+      properties:
+        for {key, val} <- args do
+          %{
+            type: "Property",
+            key: %{type: "Identifier", name: key},
+            value: Compile.transform!(val)
+          }
+        end
     }
   end
 
   def transform_property_access({
-    {_, _, [_, action]}, _, [owner, prop]
-  }) when action == :get do
+        {_, _, [_, action]},
+        _,
+        [owner, prop]
+      })
+      when action == :get do
     %{
       type: "MemberExpression",
       computed: true,
@@ -58,8 +63,10 @@ defmodule ExScript.Transformers.Types do
   end
 
   def transform_property_access({
-    {_, _, [Kernel, key]}, _, args
-  }) do
+        {_, _, [Kernel, key]},
+        _,
+        args
+      }) do
     %{
       type: "CallExpression",
       callee: %{
@@ -72,14 +79,19 @@ defmodule ExScript.Transformers.Types do
   end
 
   def transform_property_access({
-    {_, _, [{_, _, [mod_name]}, key]}, _, args
-  }) do
-    Common.module_function_call mod_name, key, args
+        {_, _, [{_, _, [mod_name]}, key]},
+        _,
+        args
+      }) do
+    Common.module_function_call(mod_name, key, args)
   end
 
   def transform_property_access({
-    {_, _, [{_, _, _} = parent_ast, key]}, _, args
-  }) when length(args) == 0 do
+        {_, _, [{_, _, _} = parent_ast, key]},
+        _,
+        args
+      })
+      when length(args) == 0 do
     %{
       type: "MemberExpression",
       object: Compile.transform!(parent_ast),
@@ -91,8 +103,10 @@ defmodule ExScript.Transformers.Types do
   end
 
   def transform_property_access({
-    {_, _, [{_, _, _} = parent_ast, key]}, _, args
-  }) do
+        {_, _, [{_, _, _} = parent_ast, key]},
+        _,
+        args
+      }) do
     %{
       type: "CallExpression",
       arguments: Enum.map(args, &Compile.transform!(&1)),
@@ -108,8 +122,10 @@ defmodule ExScript.Transformers.Types do
   end
 
   def transform_property_access({
-    {_, _, [{callee, _, _}]}, _, args
-  }) do
+        {_, _, [{callee, _, _}]},
+        _,
+        args
+      }) do
     %{
       type: "CallExpression",
       arguments: Enum.map(args, &Compile.transform!(&1)),

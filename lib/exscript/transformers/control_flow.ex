@@ -7,13 +7,14 @@ defmodule ExScript.Transformers.ControlFlow do
   alias ExScript.Common, as: Common
 
   def transform_if({_, _, [test, [{_, consequent}, {_, alternate}]]}) do
-    expr = fn (body) ->
+    expr = fn body ->
       if is_tuple(body) do
         Common.iife(Common.return_block(body))
       else
         Compile.transform!(body)
       end
     end
+
     %{
       type: "ConditionalExpression",
       test: Compile.transform!(test),
@@ -23,15 +24,17 @@ defmodule ExScript.Transformers.ControlFlow do
   end
 
   def transform_cond({_, _, [[{_, clauses}]]}) do
-    if_elses = for {_, _, [[condition], body]} <- clauses do
-      [
-        Compile.transform!(condition),
-        %{
-          type: "BlockStatement",
-          body: Common.return_block(body)
-        }
-      ]
-    end
+    if_elses =
+      for {_, _, [[condition], body]} <- clauses do
+        [
+          Compile.transform!(condition),
+          %{
+            type: "BlockStatement",
+            body: Common.return_block(body)
+          }
+        ]
+      end
+
     %{
       type: "CallExpression",
       arguments: [],
@@ -47,25 +50,33 @@ defmodule ExScript.Transformers.ControlFlow do
   end
 
   def transform_case({_, _, [val, [{_, clauses}]]}) do
-    if_elses = for {_, _, [[compare_val], body]} <- clauses do
-      is_any = if is_tuple compare_val do
-        compare_val
-        |> Tuple.to_list
-        |> List.first == :_
+    if_elses =
+      for {_, _, [[compare_val], body]} <- clauses do
+        is_any =
+          if is_tuple(compare_val) do
+            compare_val
+            |> Tuple.to_list()
+            |> List.first() == :_
+          end
+
+        [
+          if(
+            is_any,
+            do: %{type: "Literal", value: true},
+            else: %{
+              type: "BinaryExpression",
+              operator: "===",
+              left: Compile.transform!(val),
+              right: Compile.transform!(compare_val)
+            }
+          ),
+          %{
+            type: "BlockStatement",
+            body: Common.return_block(body)
+          }
+        ]
       end
-      [
-        (if is_any, do: %{type: "Literal", value: true}, else: %{
-          type: "BinaryExpression",
-          operator: "===",
-          left: Compile.transform!(val),
-          right: Compile.transform!(compare_val)
-        }),
-        %{
-          type: "BlockStatement",
-          body: Common.return_block(body)
-        }
-      ]
-    end
+
     %{
       type: "CallExpression",
       arguments: [],
@@ -81,10 +92,11 @@ defmodule ExScript.Transformers.ControlFlow do
   end
 
   def nested_if_statement(if_elses, index \\ 0) do
-    if index >= length if_elses do
+    if index >= length(if_elses) do
       nil
     else
-      [test, consequent] = Enum.at if_elses, index
+      [test, consequent] = Enum.at(if_elses, index)
+
       %{
         type: "IfStatement",
         test: test,

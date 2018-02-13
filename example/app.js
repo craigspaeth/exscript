@@ -77,15 +77,15 @@ ExScript.Modules.App = {
         return this.render_name('Harry');
     },
     render_name(name) {
-        return ExScript.Modules.ViewClient.render(ExScript.Modules.View, { name: name });
+        return ViewClient.render(View, { name: name });
     }
 };
 ExScript.Modules.ViewClient = {
     to_react_el(dsl_el) {
         const [tag_label, ...children] = dsl_el;
-        const attrs = ExScript.Modules.Keyword['keyword?'](ExScript.Modules.List.first(children)) ? (() => {
-            return ExScript.Modules.Enum.reduce(ExScript.Modules.List.first(children), {}, ([k, v], acc) => {
-                return ExScript.Modules.Map.put(acc, ExScript.Modules.Atom.to_string(k), v);
+        const attrs = Keyword['keyword?'](List.first(children)) ? (() => {
+            return Enum.reduce(List.first(children), {}, ([k, v], acc) => {
+                return Map.put(acc, Atom.to_string(k), v);
             });
         })() : null;
         const [_, ...childs] = attrs !== null ? (() => {
@@ -94,28 +94,28 @@ ExScript.Modules.ViewClient = {
             return [null].concat(children);
         })();
         return (() => {
-            if (ExScript.Modules.Kernel.is_bitstring(ExScript.Modules.List.first(childs))) {
-                return this.text_node(tag_label, attrs, ExScript.Modules.List.first(childs));
+            if (Kernel.is_bitstring(List.first(childs))) {
+                return this.text_node(tag_label, attrs, List.first(childs));
             } else if (true) {
-                return ExScript.Modules.Enum.map(childs, el => {
+                return Enum.map(childs, el => {
                     return this.to_react_el(el);
                 });
             }
         })();
     },
     text_node(tag_label, attrs, text) {
-        return ExScript.Modules.JS.window()['React'].createElement(props => {
-            return ExScript.Modules.JS.window()['React'].createElement(ExScript.Modules.Atom.to_string(tag_label), attrs, text);
+        return JS.window()['React'].createElement(props => {
+            return JS.window()['React'].createElement(Atom.to_string(tag_label), attrs, text);
         }, {});
     },
     render(view, model) {
         const el = this.to_react_el(view.render(model));
-        return ExScript.Modules.JS.window()['ReactDOM'].render(el, ExScript.Modules.JS.window()['document']['body']);
+        return JS.window()['ReactDOM'].render(el, JS.window()['document']['body']);
     }
 };
 ExScript.Modules.View = {
     onclick(e) {
-        return ExScript.Modules.IO.inspect(e);
+        return IO.inspect(e);
     },
     render(model) {
         return [
@@ -159,3 +159,4 @@ ExScript.Modules.View = {
         ];
     }
 };
+const {ViewClient, View, Keyword, List, Enum, Map, Atom, Kernel, JS, IO} = ExScript.Modules;
