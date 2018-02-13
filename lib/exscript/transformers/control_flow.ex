@@ -4,12 +4,12 @@ defmodule ExScript.Transformers.ControlFlow do
   """
 
   alias ExScript.Compile, as: Compile
-  alias ExScript.Transformers.FunctionsBlocks, as: FunctionsBlocks
+  alias ExScript.Common, as: Common
 
   def transform_if({_, _, [test, [{_, consequent}, {_, alternate}]]}) do
     expr = fn (body) ->
       if is_tuple(body) do
-        FunctionsBlocks.iife(FunctionsBlocks.return_block(body))
+        Common.iife(Common.return_block(body))
       else
         Compile.transform!(body)
       end
@@ -28,7 +28,7 @@ defmodule ExScript.Transformers.ControlFlow do
         Compile.transform!(condition),
         %{
           type: "BlockStatement",
-          body: FunctionsBlocks.return_block(body)
+          body: Common.return_block(body)
         }
       ]
     end
@@ -62,7 +62,7 @@ defmodule ExScript.Transformers.ControlFlow do
         }),
         %{
           type: "BlockStatement",
-          body: FunctionsBlocks.return_block(body)
+          body: Common.return_block(body)
         }
       ]
     end

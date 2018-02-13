@@ -4,7 +4,7 @@ defmodule ExScript.Transformers.Comprehensions do
   """
 
   alias ExScript.Compile, as: Compile
-  alias ExScript.Transformers.FunctionsBlocks, as: FunctionsBlocks
+  alias ExScript.Common, as: Common
 
   def transform_comprehension({_, _, for_ast} = ast) do
     [{_, _, [left, enum]}, [do: block]] = for_ast
@@ -18,7 +18,7 @@ defmodule ExScript.Transformers.Comprehensions do
           name: "map"
         }
       },
-      arguments: [FunctionsBlocks.function_expression(:arrow, [left], block)]
+      arguments: [Common.function_expression(:arrow, [left], block)]
     }
   end
 end
