@@ -4,8 +4,7 @@ defmodule ExScript.Transformers.Operators do
   """
 
   alias ExScript.Compile, as: Compile
-  alias ExScript.Transformers.Modules, as: Modules
-
+  alias ExScript.Common, as: Common
 
   def transform_binary_expression({token, _, [left, right]}) do
     %{
@@ -92,7 +91,7 @@ defmodule ExScript.Transformers.Operators do
 
   def transform_pipeline({_, _, [arg | [fn_call]]}) do
     {{_, _, [{_, _, [mod_name]}, fn_name]}, _, extra_args} = fn_call
-    Modules.module_function_call(
+    Common.module_function_call(
       mod_name,
       fn_name,
       [arg | extra_args]

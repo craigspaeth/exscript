@@ -1,57 +1,80 @@
-defmodule ExScript.Transformers.FunctionsBlocks do
+defmodule ExScript.Common do
   @moduledoc """
-  Transforms function and block related Elixir ASTs to ESTree JSON
+  Helpers to generate common AST structures like IIEFs
   """
 
   alias ExScript.Compile, as: Compile
-  alias ExScript.Transformers.Modules, as: Modules
 
+  def module_function_call(mod_name, fn_name, args) do
+    ExScript.State.hoist_module_namespace mod_name
+    if fn_name == :embed do
+      [code] = args
+      cmd = "echo \"#{code}\" | node_modules/.bin/acorn"
+      js_ast = Poison.decode!(:os.cmd(String.to_charlist(cmd)))
+      [first] = js_ast["body"]
+      first
+    else
+      is_computed = fn_name |> Atom.to_string() |> String.contains?("?")
 
-  def transform_kernel_function({fn_name, _, args}) do
-    Modules.module_function_call "Kernel", fn_name, args
+      %{
+        type: "CallExpression",
+        arguments: Compile.transform_list!(args),
+        callee: %{
+          type: "MemberExpression",
+          object: %{
+            type: "Identifier",
+            name: mod_name
+          },
+          property:
+            if is_computed do
+              %{
+                type: "Literal",
+                value: fn_name,
+                raw: fn_name
+              }
+            else
+              %{
+                type: "Identifier",
+                name: fn_name
+              }
+            end,
+          computed: is_computed
+        }
+      }
+    end
   end
 
-  def transform_anonymous_function({_, _, args}) do
-    fn_args = for {_, _, fn_args} <- args, do: fn_args
-    [return_val | fn_args] = fn_args |> List.flatten |> Enum.reverse
-    function_expression :arrow, Enum.reverse(fn_args), return_val
+  def return_block(ast) do
+    cond do
+      is_tuple ast ->
+        {key, _, body} = ast
+        case key do
+          :__block__ ->
+            [return_line | fn_lines] = Enum.reverse body
+            Enum.map(Enum.reverse(fn_lines), &Compile.transform!(&1)) ++
+            dont_return_assignment(return_line)
+          _ ->
+            dont_return_assignment ast
+        end
+      true ->
+        [%{type: "ReturnStatement", argument: Compile.transform!(ast)}]
+    end
   end
 
-  def transform_block_statement({_, _, args}) do
-    %{
-      type: "BlockStatement",
-      body: Compile.transform_list! args
-    }
-  end
-
-  def transform_external_function_call({
-    {_, _, [{_, _, namespaces}, fn_name]}, _, args
-  }) when not is_nil namespaces do
-    mod_name = Enum.join namespaces, ""
-    Modules.module_function_call mod_name, fn_name, args
-  end
-
-  def transform_external_function_call({
-    {_, _, [{callee_name, _, namespaces}, fn_name]}, _, args
-  }) when is_nil namespaces do
+  def iife(body) do
     %{
       type: "CallExpression",
-      arguments: Enum.map(args, &Compile.transform!(&1)),
+      arguments: [],
       callee: %{
-        type: "MemberExpression",
-        arguments: [],
-        object: %{
-          type: "Identifier",
-          name: callee_name
-        },
-        property: %{
-          type: "Identifier",
-          name: fn_name
+        type: "ArrowFunctionExpression",
+        params: [],
+        body: %{
+          type: "BlockStatement",
+          body: body
         }
       }
     }
   end
-
 
   def function_expression(type, args, return_val) do
     args = args || []
@@ -111,24 +134,7 @@ defmodule ExScript.Transformers.FunctionsBlocks do
     }
   end
 
-  def return_block(ast) do
-    cond do
-      is_tuple ast ->
-        {key, _, body} = ast
-        case key do
-          :__block__ ->
-            [return_line | fn_lines] = Enum.reverse body
-            Enum.map(Enum.reverse(fn_lines), &Compile.transform!(&1)) ++
-            dont_return_assignment(return_line)
-          _ ->
-            dont_return_assignment ast
-        end
-      true ->
-        [%{type: "ReturnStatement", argument: Compile.transform!(ast)}]
-    end
-  end
-
-  def dont_return_assignment(ast) do
+  defp dont_return_assignment(ast) do
     {key, _, body} = ast
     if key == := do
       [{var_name, _, _}, _] = body
@@ -142,20 +148,5 @@ defmodule ExScript.Transformers.FunctionsBlocks do
     else
       [%{type: "ReturnStatement", argument: Compile.transform!(ast)}]
     end
-  end
-
-  def iife(body) do
-    %{
-      type: "CallExpression",
-      arguments: [],
-      callee: %{
-        type: "ArrowFunctionExpression",
-        params: [],
-        body: %{
-          type: "BlockStatement",
-          body: body
-        }
-      }
-    }
   end
 end

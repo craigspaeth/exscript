@@ -4,8 +4,7 @@ defmodule ExScript.Transformers.Types do
   """
 
   alias ExScript.Compile, as: Compile
-  alias ExScript.Transformers.FunctionsBlocks, as: FunctionsBlocks
-  alias ExScript.Transformers.Modules, as: Modules
+  alias ExScript.Common, as: Common
 
   def transform_tuple_literal(ast) do
     %{
@@ -75,7 +74,7 @@ defmodule ExScript.Transformers.Types do
   def transform_property_access({
     {_, _, [{_, _, [mod_name]}, key]}, _, args
   }) do
-    Modules.module_function_call mod_name, key, args
+    Common.module_function_call mod_name, key, args
   end
 
   def transform_property_access({

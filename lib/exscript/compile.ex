@@ -1,7 +1,7 @@
 defmodule ExScript.Compile do
   import ExScript.Transformers.Modules
   import ExScript.Transformers.Comprehensions
-  import ExScript.Transformers.FunctionsBlocks
+  import ExScript.Transformers.Functions
   import ExScript.Transformers.Operators
   import ExScript.Transformers.ControlFlow
   import ExScript.Transformers.Types
@@ -129,5 +129,12 @@ defmodule ExScript.Compile do
       true ->
         raise "Unknown token #{token}"
     end
+  end
+
+  defp transform_block_statement({_, _, args}) do
+    %{
+      type: "BlockStatement",
+      body: Compile.transform_list! args
+    }
   end
 end

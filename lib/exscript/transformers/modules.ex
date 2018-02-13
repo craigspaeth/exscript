@@ -4,7 +4,7 @@ defmodule ExScript.Transformers.Modules do
   """
 
   alias ExScript.Compile, as: Compile
-  alias ExScript.Transformers.FunctionsBlocks, as: FunctionsBlocks
+  alias ExScript.Common, as: Common
 
   def transform_module({_, _, args}) do
     [{_, _, namespaces} | [body]] = args
@@ -47,7 +47,7 @@ defmodule ExScript.Transformers.Modules do
               shorthand: false,
               computed: false,
               key: %{type: "Identifier", name: method_name},
-              value: FunctionsBlocks.function_expression(:obj, args, return_val)
+              value: Common.function_expression(:obj, args, return_val)
             }
           end
       }
@@ -97,45 +97,6 @@ defmodule ExScript.Transformers.Modules do
         }
       }
     }
-  end
-
-  def module_function_call(mod_name, fn_name, args) do
-    ExScript.State.hoist_module_namespace mod_name
-    if fn_name == :embed do
-      [code] = args
-      cmd = "echo \"#{code}\" | node_modules/.bin/acorn"
-      js_ast = Poison.decode!(:os.cmd(String.to_charlist(cmd)))
-      [first] = js_ast["body"]
-      first
-    else
-      is_computed = fn_name |> Atom.to_string() |> String.contains?("?")
-
-      %{
-        type: "CallExpression",
-        arguments: Compile.transform_list!(args),
-        callee: %{
-          type: "MemberExpression",
-          object: %{
-            type: "Identifier",
-            name: mod_name
-          },
-          property:
-            if is_computed do
-              %{
-                type: "Literal",
-                value: fn_name,
-                raw: fn_name
-              }
-            else
-              %{
-                type: "Identifier",
-                name: fn_name
-              }
-            end,
-          computed: is_computed
-        }
-      }
-    end
   end
 
   def module_namespaces do
