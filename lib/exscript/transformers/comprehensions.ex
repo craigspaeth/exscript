@@ -2,8 +2,9 @@ defmodule ExScript.Transformers.Comprehensions do
   @moduledoc """
   Transforms module (and module-related) Elixir ASTs to ESTree JSON
   """
-  
+
   alias ExScript.Compile, as: Compile
+  alias ExScript.Transformers.FunctionsBlocks, as: FunctionsBlocks
 
   def transform_comprehension({_, _, for_ast} = ast) do
     [{_, _, [left, enum]}, [do: block]] = for_ast
@@ -17,7 +18,7 @@ defmodule ExScript.Transformers.Comprehensions do
           name: "map"
         }
       },
-      arguments: [Compile.function_expression(:arrow, [left], block)]
+      arguments: [FunctionsBlocks.function_expression(:arrow, [left], block)]
     }
   end
 end

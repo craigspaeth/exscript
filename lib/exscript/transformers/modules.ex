@@ -4,6 +4,7 @@ defmodule ExScript.Transformers.Modules do
   """
 
   alias ExScript.Compile, as: Compile
+  alias ExScript.Transformers.FunctionsBlocks, as: FunctionsBlocks
 
   def transform_module({_, _, args}) do
     [{_, _, namespaces} | [body]] = args
@@ -46,7 +47,7 @@ defmodule ExScript.Transformers.Modules do
               shorthand: false,
               computed: false,
               key: %{type: "Identifier", name: method_name},
-              value: Compile.function_expression(:obj, args, return_val)
+              value: FunctionsBlocks.function_expression(:obj, args, return_val)
             }
           end
       }
@@ -84,7 +85,7 @@ defmodule ExScript.Transformers.Modules do
   def transform_local_function({fn_name, _, args}) do
     %{
       type: "CallExpression",
-      arguments: Compile.transform_list(args),
+      arguments: Compile.transform_list!(args),
       callee: %{
         type: "MemberExpression",
         object: %{
@@ -111,7 +112,7 @@ defmodule ExScript.Transformers.Modules do
 
       %{
         type: "CallExpression",
-        arguments: Compile.transform_list(args),
+        arguments: Compile.transform_list!(args),
         callee: %{
           type: "MemberExpression",
           object: %{
