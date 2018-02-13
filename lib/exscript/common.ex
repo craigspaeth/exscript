@@ -54,8 +54,10 @@ defmodule ExScript.Common do
           :__block__ ->
             [return_line | fn_lines] = Enum.reverse(body)
 
-            Enum.map(Enum.reverse(fn_lines), &Compile.transform!(&1)) ++
-              dont_return_assignment(return_line)
+            with_declared_vars(fn ->
+              Enum.map(Enum.reverse(fn_lines), &Compile.transform!(&1)) ++
+                dont_return_assignment(return_line)
+            end)
 
           _ ->
             dont_return_assignment(ast)
@@ -144,6 +146,26 @@ defmodule ExScript.Common do
         end),
       body: %{type: "BlockStatement", body: return_block(return_val)}
     }
+  end
+
+  def with_declared_vars(body_generator) do
+    IO.inspect("with")
+    ExScript.State.new_block()
+    body = body_generator.()
+
+    variables = %{
+      declarations:
+        Enum.map(ExScript.State.variables(), fn var_name ->
+          %{
+            id: %{name: var_name, type: "Identifier"},
+            type: "VariableDeclarator"
+          }
+        end),
+      kind: "let",
+      type: "VariableDeclaration"
+    }
+
+    [variables] ++ body
   end
 
   defp dont_return_assignment(ast) do

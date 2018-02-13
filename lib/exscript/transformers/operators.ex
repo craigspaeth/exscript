@@ -37,6 +37,7 @@ defmodule ExScript.Transformers.Operators do
     id =
       if is_list(vars) do
         {var_name, _, _} = Enum.at(vars, 0)
+        ExScript.State.hoist_variable(var_name)
 
         %{
           type: "ArrayPattern",
@@ -60,19 +61,18 @@ defmodule ExScript.Transformers.Operators do
         }
       else
         {var_name, _, _} = vars
+        ExScript.State.hoist_variable(var_name)
         %{type: "Identifier", name: var_name}
       end
 
     %{
-      type: "VariableDeclaration",
-      kind: "const",
-      declarations: [
-        %{
-          type: "VariableDeclarator",
-          id: id,
-          init: Compile.transform!(val)
-        }
-      ]
+      type: "ExpressionStatement",
+      expression: %{
+        left: id,
+        operator: "=",
+        right: Compile.transform!(val),
+        type: "AssignmentExpression"
+      }
     }
   end
 

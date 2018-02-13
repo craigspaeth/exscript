@@ -171,4 +171,53 @@ defmodule ExScript.Compiler.FunctionsTest do
                })];
            """
   end
+
+  @tag :cur
+  test "declares let variables at the top of a block for reassignment" do
+    ex = """
+    defmodule Foo do
+      def a do
+        b = "bar"
+        c = fn ->
+          b = "qux"
+        end
+        b = "baz"
+      end
+      def b do
+        b = "bam"
+        c = "foo"
+        b = "bop"
+        c = "baz"
+      end
+    end
+    """
+
+    js = ExScript.Compile.to_js!(Code.string_to_quoted!(ex))
+
+    expected = """
+    ExScript.Modules.Foo = {
+        a() {
+            let b, c;
+            b = 'bar';
+            c = () => {
+                let b;
+                b = 'qux';
+                return b;
+            };
+            b = 'baz';
+            return b;
+        },
+        b() {
+            let b, c;
+            b = 'bam';
+            c = 'foo';
+            b = 'bop';
+            c = 'baz';
+            return c;
+        }
+    }
+    """
+
+    assert js <> "\n" == expected
+  end
 end
