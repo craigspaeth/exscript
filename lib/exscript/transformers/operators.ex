@@ -37,7 +37,6 @@ defmodule ExScript.Transformers.Operators do
     id =
       if is_list(vars) do
         {var_name, _, _} = Enum.at(vars, 0)
-        ExScript.State.hoist_variable(var_name)
 
         %{
           type: "ArrayPattern",
@@ -45,6 +44,9 @@ defmodule ExScript.Transformers.Operators do
             if var_name == :| do
               {_, _, body} = Enum.at(vars, 0)
               [{head_var_name, _, _}, {tail_var_name, _, _}] = body
+
+              ExScript.State.hoist_variable(head_var_name)
+              ExScript.State.hoist_variable(tail_var_name)
 
               [
                 %{type: "Identifier", name: head_var_name},
@@ -55,6 +57,7 @@ defmodule ExScript.Transformers.Operators do
               ]
             else
               for {var_name, _, _} <- vars do
+                ExScript.State.hoist_variable(var_name)
                 %{type: "Identifier", name: var_name}
               end
             end

@@ -2,153 +2,233 @@ defmodule ExScript.Compiler.OperatorsTest do
   use ExUnit.Case
 
   test "compiles basic arithmetic" do
-    js = ExScript.Compile.to_js!(quote do: 1 + 2 * 3 / 4 - 5)
-    assert js == "1 + 2 * 3 / 4 - 5"
+    ExScript.TestHelper.compare(
+      """
+      1 + 2 * 3 / 4 - 5
+      """,
+      """
+      1 + 2 * 3 / 4 - 5;
+      """
+    )
   end
 
   test "compiles assignment" do
-    js = ExScript.Compile.to_js!(quote do: a = 1)
-    assert js == "const a = 1;"
+    ExScript.TestHelper.compare(
+      """
+      a = 1
+      """,
+      """
+      let a;
+      a = 1;
+      """
+    )
   end
 
   test "compiles equality" do
-    js = ExScript.Compile.to_js!(quote do: true == false)
-    assert js == "true === false"
+    ExScript.TestHelper.compare(
+      """
+      true == false
+      """,
+      """
+      true === false;
+      """
+    )
   end
 
   test "compiles list > operators" do
-    ast = Code.string_to_quoted!("1 > 2")
-    js = ExScript.Compile.to_js!(ast)
-
-    assert js <> "\n" == """
-           1 > 2
-           """
+    ExScript.TestHelper.compare(
+      """
+      1 > 2
+      """,
+      """
+      1 > 2;
+      """
+    )
   end
 
   test "compiles pipeline operator" do
-    js = ExScript.Compile.to_js!(quote do: "a" |> IO.puts())
-
-    assert js <> "\n" == """
-           IO.puts('a')
-           """
+    ExScript.TestHelper.compare(
+      """
+      "a" |> IO.puts()
+      """,
+      """
+      IO.puts('a');
+      const {IO} = ExScript.Modules;
+      """
+    )
   end
 
   test "compiles pipeline operator with extra args" do
-    js = ExScript.Compile.to_js!(quote do: "a,b" |> String.split(","))
-
-    assert js <> "\n" == """
-           String.split('a,b', ',')
-           """
+    ExScript.TestHelper.compare(
+      """
+      "a,b" |> String.split(",")
+      """,
+      """
+      String.split('a,b', ',');
+      const {String} = ExScript.Modules;
+      """
+    )
   end
 
   test "compiles list pattern matching" do
-    js = ExScript.Compile.to_js!(quote do: [a, b] = [1, 2])
-
-    assert js <> "\n" == """
-           const [a, b] = [
-               1,
-               2
-           ];
-           """
+    ExScript.TestHelper.compare(
+      """
+      [a, b] = [1, 2]
+      """,
+      """
+      let a, b;
+      [a, b] = [
+          1,
+          2
+      ];
+      """
+    )
   end
 
   test "compiles head tail pattern matching" do
-    js = ExScript.Compile.to_js!(quote do: [a | b] = [1, 2, 3])
-
-    assert js <> "\n" == """
-           const [a, ...b] = [
-               1,
-               2,
-               3
-           ];
-           """
+    ExScript.TestHelper.compare(
+      """
+      [a | b] = [1, 2, 3]
+      """,
+      """
+      let a, b;
+      [a, ...b] = [
+          1,
+          2,
+          3
+      ];
+      """
+    )
   end
 
   test "compiles tuple pattern matching" do
-    ast =
-      Code.string_to_quoted!("""
+    ExScript.TestHelper.compare(
+      """
       {a, b} = {"a", "b"}
-      """)
-
-    js = ExScript.Compile.to_js!(ast)
-
-    assert js <> "\n" == """
-           const [a, b] = new ExScript.Types.Tuple('a', 'b');
-           """
+      """,
+      """
+      let a, b;
+      [a, b] = new ExScript.Types.Tuple('a', 'b');
+      """
+    )
   end
 
   test "compiles <> operators" do
-    js = ExScript.Compile.to_js!(quote do: "a" <> "b")
-    assert js == "'a' + 'b'"
+    ExScript.TestHelper.compare(
+      """
+      "a" <> "b"
+      """,
+      """
+      'a' + 'b';
+      """
+    )
   end
 
   test "compiles or operators" do
-    js = ExScript.Compile.to_js!(quote do: if(true or true, do: "hi", else: "bai"))
-    assert js == "true || true ? 'hi' : 'bai'"
+    ExScript.TestHelper.compare(
+      """
+      if(true or true, do: "hi", else: "bai")
+      """,
+      """
+      true || true ? 'hi' : 'bai';
+      """
+    )
   end
 
   test "compiles and operators" do
-    js = ExScript.Compile.to_js!(quote do: if(true and true, do: "hi", else: "bai"))
-    assert js == "true && true ? 'hi' : 'bai'"
+    ExScript.TestHelper.compare(
+      """
+      if(true and true, do: "hi", else: "bai")
+      """,
+      """
+      true && true ? 'hi' : 'bai';
+      """
+    )
   end
 
   test "compiles || operators" do
-    js = ExScript.Compile.to_js!(quote do: if(true || true, do: "hi", else: "bai"))
-    assert js == "true || true ? 'hi' : 'bai'"
+    ExScript.TestHelper.compare(
+      """
+      if(true || true, do: "hi", else: "bai")
+      """,
+      """
+      true || true ? 'hi' : 'bai';
+      """
+    )
   end
 
   test "compiles && operators" do
-    js = ExScript.Compile.to_js!(quote do: if(true && true, do: "hi", else: "bai"))
-    assert js == "true && true ? 'hi' : 'bai'"
+    ExScript.TestHelper.compare(
+      """
+      if(true && true, do: "hi", else: "bai")
+      """,
+      """
+      true && true ? 'hi' : 'bai';
+      """
+    )
   end
 
   test "compiles not operators" do
-    js = ExScript.Compile.to_js!(quote do: if(not "foo", do: "hi", else: "bai"))
-    assert js == "!'foo' ? 'hi' : 'bai'"
+    ExScript.TestHelper.compare(
+      """
+      if(not "foo", do: "hi", else: "bai")
+      """,
+      """
+      !'foo' ? 'hi' : 'bai';
+      """
+    )
   end
 
   test "compiles advanced not operators" do
-    js = ExScript.Compile.to_js!(quote do: if(not IO.puts(), do: "hi", else: "bai"))
-    assert js == "!IO.puts() ? 'hi' : 'bai'"
+    ExScript.TestHelper.compare(
+      """
+      if(not IO.puts(), do: "hi", else: "bai")
+      """,
+      """
+      !IO.puts() ? 'hi' : 'bai';
+      const {IO} = ExScript.Modules;
+      """
+    )
   end
 
   test "compiles string interpolation" do
-    js = ExScript.Compile.to_js!(quote do: "foo #{"bar"}")
-    assert js == "`foo ${ 'bar' }`"
-    js = ExScript.Compile.to_js!(quote do: "foo #{"bar"} baz")
-    assert js == "`foo ${ 'bar' } baz`"
-    js = ExScript.Compile.to_js!(quote do: "foo #{"bar" + "baz"}")
-    assert js == "`foo ${ 'bar' + 'baz' }`"
-    js = ExScript.Compile.to_js!(quote do: "foo #{"bar" + "baz"} qux")
-    assert js == "`foo ${ 'bar' + 'baz' } qux`"
+    ExScript.TestHelper.compare("\"foo \#{\"bar\"}\"", "`foo ${ 'bar' }`;\n")
+    ExScript.TestHelper.compare("\"foo \#{\"bar\"} baz\"", "`foo ${ 'bar' } baz`;\n")
+    ExScript.TestHelper.compare("\"foo \#{\"bar\" + \"baz\"}\"", "`foo ${ 'bar' + 'baz' }`;\n")
+
+    ExScript.TestHelper.compare(
+      "\"foo \#{\"bar\" + \"baz\"} qux\"",
+      "`foo ${ 'bar' + 'baz' } qux`;\n"
+    )
   end
 
   test "compiles !=" do
-    ast =
-      Code.string_to_quoted!("""
+    ExScript.TestHelper.compare(
+      """
       a = if true != false, do: "hi", else: "bai"
-      """)
-
-    js = ExScript.Compile.to_js!(ast)
-
-    assert js <> "\n" == """
-           const a = true !== false ? 'hi' : 'bai';
-           """
+      """,
+      """
+      let a;
+      a = true !== false ? 'hi' : 'bai';
+      """
+    )
   end
 
   test "compiles list ++ operators" do
-    ast = Code.string_to_quoted!("[1, 2] ++ [3, 4]")
-    js = ExScript.Compile.to_js!(ast)
-
-    assert js <> "\n" == """
-           [
-               1,
-               2
-           ].concat([
-               3,
-               4
-           ])
-           """
+    ExScript.TestHelper.compare(
+      """
+      [1, 2] ++ [3, 4]
+      """,
+      """
+      [
+          1,
+          2
+      ].concat([
+          3,
+          4
+      ]);
+      """
+    )
   end
 
   @tag :skip
