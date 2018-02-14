@@ -28,23 +28,17 @@ defmodule ExScript.Compile do
   defp to_program_ast!(ast) do
     ExScript.State.init()
 
-    res =
+    body =
       if is_tuple(ast) and Enum.at(Tuple.to_list(ast), 0) == :__block__ do
-        {_, _, body} = ast
-
-        body =
-          Enum.map(body, fn ast ->
-            %{type: "ExpressionStatement", expression: transform!(ast)}
-          end)
-
-        body = if is_nil(module_namespaces()), do: body, else: body ++ [module_namespaces()]
-        %{type: "Program", body: body}
+        transform_block_statement(ast)
       else
-        transform!(ast)
+        transform_block_statement({:__block__, [], [ast]})
       end
 
+    body = if is_nil(module_namespaces()), do: body, else: body ++ [module_namespaces()]
+
     ExScript.State.clear()
-    res
+    %{type: "Program", body: body}
   end
 
   def transform!(ast) do
@@ -170,8 +164,14 @@ defmodule ExScript.Compile do
   end
 
   defp transform_block_statement({_, _, args}) do
-    with_declared_vars(fn ->
-      transform_list!(args)
-    end)
+    body = with_declared_vars(fn -> transform_list!(args) end)
+
+    for line <- body do
+      if Enum.member?(["ExpressionStatement", "VariableDeclaration"], line[:type]) do
+        line
+      else
+        %{type: "ExpressionStatement", expression: line}
+      end
+    end
   end
 end

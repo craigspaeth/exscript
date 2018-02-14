@@ -9,8 +9,7 @@ defmodule ExScript.State do
 
   @init_state %{
     modules: [],
-    variables: %{},
-    current_block: UUID.uuid1()
+    variable_blocks: [[]]
   }
 
   def init do
@@ -30,23 +29,35 @@ defmodule ExScript.State do
     Agent.get(__MODULE__, fn state -> state.modules end)
   end
 
-  def new_block do
+  def start_block do
     Agent.update(__MODULE__, fn state ->
-      %{state | current_block: UUID.uuid1()}
+      %{state | variable_blocks: state.variable_blocks ++ [[]]}
+    end)
+  end
+
+  def end_block do
+    Agent.update(__MODULE__, fn state ->
+      %{state | variable_blocks: Enum.drop(state.variable_blocks, -1)}
     end)
   end
 
   def hoist_variable(var_name) do
     Agent.update(__MODULE__, fn state ->
-      cur_vars = state.variables[state.current_block] || []
-      new_vars = Map.put(state.variables, state.current_block, Enum.uniq(cur_vars ++ [var_name]))
-      %{state | variables: new_vars}
+      new_vars = List.last(state.variable_blocks) ++ [var_name]
+      new_blocks = List.replace_at(state.variable_blocks, -1, new_vars)
+      %{state | variable_blocks: new_blocks}
     end)
   end
 
   def variables do
     Agent.get(__MODULE__, fn state ->
-      state.variables[state.current_block]
+      Enum.uniq(List.last(state.variable_blocks))
+    end)
+  end
+
+  def get do
+    Agent.get(__MODULE__, fn state ->
+      state
     end)
   end
 

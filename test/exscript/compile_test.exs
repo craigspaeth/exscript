@@ -31,11 +31,13 @@ defmodule ExScript.Compile.CompileTest do
 
     assert js <> "\n" == """
            () => {
-               const a = 'a';
+               let a, b;
+               a = 'a';
                debugger;
-               const b = 'b';
+               b = 'b';
                return b;
-           }
+           };
+           const {JS} = ExScript.Modules;
            """
   end
 end

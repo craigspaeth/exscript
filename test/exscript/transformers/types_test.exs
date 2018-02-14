@@ -3,12 +3,12 @@ defmodule ExScript.Compiler.TypesTest do
 
   test "compiles atoms" do
     js = ExScript.Compile.to_js!(quote do: :hello)
-    assert js == "Symbol('hello')"
+    assert js == "Symbol('hello');"
   end
 
   test "compiles strings" do
     js = ExScript.Compile.to_js!(quote do: "Hello")
-    assert js == "'Hello'"
+    assert js == "'Hello';"
   end
 
   test "compiles lists" do
@@ -19,7 +19,7 @@ defmodule ExScript.Compiler.TypesTest do
                1,
                2,
                3
-           ]
+           ];
            """
   end
 
@@ -27,7 +27,8 @@ defmodule ExScript.Compiler.TypesTest do
     js = ExScript.Compile.to_js!(quote do: a = {"a", "b"})
 
     assert js <> "\n" == """
-           const a = new ExScript.Types.Tuple('a', 'b');
+           let a;
+           a = new ExScript.Types.Tuple('a', 'b');
            """
   end
 
@@ -35,7 +36,8 @@ defmodule ExScript.Compiler.TypesTest do
     js = ExScript.Compile.to_js!(quote do: %{foo: IO.puts()})
 
     assert js <> "\n" == """
-           { foo: IO.puts() }
+           ({ foo: IO.puts() });
+           const {IO} = ExScript.Modules;
            """
   end
 
@@ -43,16 +45,16 @@ defmodule ExScript.Compiler.TypesTest do
     js = ExScript.Compile.to_js!(quote do: %{foo: "bar", baz: "qux"})
 
     assert js <> "\n" == """
-           {
+           ({
                foo: 'bar',
                baz: 'qux'
-           }
+           });
            """
   end
 
   test "compiles nil" do
     js = ExScript.Compile.to_js!(quote do: nil)
-    assert js == "null"
+    assert js == "null;"
   end
 
   @tag :skip

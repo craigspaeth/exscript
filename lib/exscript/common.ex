@@ -60,7 +60,7 @@ defmodule ExScript.Common do
             end)
 
           _ ->
-            dont_return_assignment(ast)
+            with_declared_vars(fn -> dont_return_assignment(ast) end)
         end
 
       true ->
@@ -149,23 +149,30 @@ defmodule ExScript.Common do
   end
 
   def with_declared_vars(body_generator) do
-    IO.inspect("with")
-    ExScript.State.new_block()
+    ExScript.State.start_block()
     body = body_generator.()
 
-    variables = %{
-      declarations:
-        Enum.map(ExScript.State.variables(), fn var_name ->
-          %{
-            id: %{name: var_name, type: "Identifier"},
-            type: "VariableDeclarator"
-          }
-        end),
-      kind: "let",
-      type: "VariableDeclaration"
-    }
+    declarations =
+      Enum.map(ExScript.State.variables(), fn var_name ->
+        %{
+          id: %{name: var_name, type: "Identifier"},
+          type: "VariableDeclarator"
+        }
+      end)
 
-    [variables] ++ body
+    ExScript.State.end_block()
+
+    if length(declarations) > 0 do
+      variables = %{
+        declarations: declarations,
+        kind: "let",
+        type: "VariableDeclaration"
+      }
+
+      [variables] ++ body
+    else
+      body
+    end
   end
 
   defp dont_return_assignment(ast) do
