@@ -159,7 +159,6 @@ defmodule ExScript.Compiler.FunctionsTest do
     )
   end
 
-  @tag :cur
   test "compiles functions in keyword lists" do
     ExScript.TestHelper.compare(
       """
@@ -217,6 +216,24 @@ defmodule ExScript.Compiler.FunctionsTest do
               return x;
           }
       };
+      """
+    )
+  end
+
+  test "compiles anonymous functions with multiple arguments" do
+    ExScript.TestHelper.compare(
+      """
+      Enum.reduce [1,2,3], fn (i, acc) -> i + acc end
+      """,
+      """
+      Enum.reduce([
+          1,
+          2,
+          3
+      ], (i, acc) => {
+          return i + acc;
+      });
+      const {Enum} = ExScript.Modules;
       """
     )
   end
