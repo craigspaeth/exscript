@@ -75,6 +75,24 @@ defmodule ExScript.Compiler.ModulesTest do
     )
   end
 
+  test "compiles function calls with anonymous functions as args" do
+    ExScript.TestHelper.compare(
+      """
+      Enum.map [1,2,3], fn (i) -> i + 1 end
+      """,
+      """
+      Enum.map([
+          1,
+          2,
+          3
+      ], i => {
+          return i + 1;
+      });
+      const {Enum} = ExScript.Modules;
+      """
+    )
+  end
+
   test "compiles external module function calls" do
     ExScript.TestHelper.compare(
       """

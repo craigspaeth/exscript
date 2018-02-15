@@ -2,16 +2,17 @@
 // A JS library used to implement Elixir/Erlang standard library or language
 // features that don't translate very cleanly 1:1.
 //
-const ExScript = {}
+const ExScript = { Modules: { ExScript: { Stdlib: {} } } }
+const root = typeof window === 'undefined' ? global : window
 
 // Namespace for user-land modules
 ExScript.Modules = {}
 ExScript.Modules.JS = {
-  window: () => window
+  window: () => root
 }
 ExScript.Modules.IO = {
-  puts: window.console.log,
-  inspect: window.console.debug
+  puts: root.console.log,
+  inspect: root.console.debug
 }
 
 // Data Types
@@ -23,18 +24,6 @@ ExScript.Types.Tuple = class Tuple extends Array {}
 // Atom
 ExScript.Modules.Atom = {}
 ExScript.Modules.Atom.to_string = atom => String(atom).slice(7, -1)
-
-// Enum
-ExScript.Modules.Enum = {}
-ExScript.Modules.Enum.map = (e, ittr) => Array.prototype.map.call(e, ittr)
-ExScript.Modules.Enum.reduce = (enumerable, arg2, arg3) => {
-  const reducer = arg3 || arg2
-  const initVal = arg3 ? arg2 : enumerable[0]
-  const callback = (acc, val, i) => reducer(val, acc)
-  return Array.prototype.reduce.call(enumerable, callback, initVal)
-}
-ExScript.Modules.Enum.join = (e, char) => Array.prototype.join.call(e, char)
-ExScript.Modules.Enum.at = (e, index) => e[index]
 
 // Map
 ExScript.Modules.Map = {}
@@ -72,6 +61,30 @@ ExScript.Modules.Kernel.is_port = val => typeof val === 'boolean'
 ExScript.Modules.Kernel.is_reference = val => typeof val === 'boolean'
 ExScript.Modules.Kernel.is_tuple = val => val instanceof ExScript.Types.Tuple
 ExScript.Modules.Kernel.length = val => val.length
+ExScript.Modules.ExScriptStdlibEnum = {
+    map(e, fun) {
+        return e.map(i => {
+            return fun(i);
+        });
+    },
+    reduce(enumerable, arg2, arg3) {
+        const reducer = arg3 || arg2;
+        const initVal = arg3 ? arg2 : enumerable[0];
+        const callback = (acc, val, i) => reducer(val, acc);
+        return Array.prototype.reduce.call(enumerable, callback, initVal);;
+    },
+    join(e, char) {
+        return Array.prototype.join.call(e, char);;
+    },
+    at(e, index) {
+        return e[index];;
+    }
+};for (let key in ExScript.Modules) {
+  if (key.match(/^ExScriptStdlib/)) {
+    const modName = key.replace('ExScriptStdlib', '')
+    ExScript.Modules[modName] = ExScript.Modules[key]
+  }
+}
 ExScript.Modules.App = {
     init() {
         return this.render_name('Harry');
@@ -82,13 +95,14 @@ ExScript.Modules.App = {
 };
 ExScript.Modules.ViewClient = {
     to_react_el(dsl_el) {
-        const [tag_label, ...children] = dsl_el;
-        const attrs = Keyword['keyword?'](List.first(children)) ? (() => {
+        let tag_label, children, attrs, _, childs;
+        [tag_label, ...children] = dsl_el;
+        attrs = Keyword['keyword?'](List.first(children)) ? (() => {
             return Enum.reduce(List.first(children), {}, ([k, v], acc) => {
                 return Map.put(acc, Atom.to_string(k), v);
             });
         })() : null;
-        const [_, ...childs] = attrs !== null ? (() => {
+        [_, ...childs] = attrs !== null ? (() => {
             return children;
         })() : (() => {
             return [null].concat(children);
@@ -109,7 +123,8 @@ ExScript.Modules.ViewClient = {
         }, {});
     },
     render(view, model) {
-        const el = this.to_react_el(view.render(model));
+        let el;
+        el = this.to_react_el(view.render(model));
         return JS.window()['ReactDOM'].render(el, JS.window()['document']['body']);
     }
 };

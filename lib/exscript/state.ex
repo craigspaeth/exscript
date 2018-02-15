@@ -11,7 +11,6 @@ defmodule ExScript.State do
     modules: [],
     variable_blocks: [[]]
   }
-
   def init do
     Agent.start_link(
       fn -> @init_state end,

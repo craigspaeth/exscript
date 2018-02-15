@@ -7,13 +7,27 @@ defmodule ExScript.Compile do
   import ExScript.Transformers.ControlFlow
   import ExScript.Transformers.Types
 
-  @js_lib File.read!("lib/exscript/lib.js")
   @cwd File.cwd!()
 
   def compile!(code) do
-    Code.compile_string(code)
-    ast = Code.string_to_quoted!(code)
-    @js_lib <> to_js!(ast)
+    stdlib =
+      File.read!("lib/exscript/stdlib/enum.ex")
+      |> Code.string_to_quoted!()
+      |> ExScript.Compile.to_js!()
+      |> String.split("\n")
+      |> Enum.drop(-1)
+      |> Enum.join("\n")
+
+    runtime =
+      File.read!("lib/exscript/stdlib/pre.js") <>
+        stdlib <> File.read!("lib/exscript/stdlib/post.js")
+
+    app_code =
+      code
+      |> Code.string_to_quoted!()
+      |> to_js!
+
+    runtime <> app_code
   end
 
   def to_js!(ast) do
