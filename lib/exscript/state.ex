@@ -20,7 +20,7 @@ defmodule ExScript.State do
 
   def hoist_module_namespace(mod_name) do
     Agent.update(__MODULE__, fn state ->
-      %{state | modules: Enum.uniq(state.modules ++ [mod_name])}
+      %{state | modules: Enum.uniq(state.modules ++ [to_string(mod_name)])}
     end)
   end
 
@@ -30,13 +30,19 @@ defmodule ExScript.State do
 
   def start_block do
     Agent.update(__MODULE__, fn state ->
-      %{state | variable_blocks: state.variable_blocks ++ [[]]}
+      %{
+        state
+        | variable_blocks: state.variable_blocks ++ [[]]
+      }
     end)
   end
 
   def end_block do
     Agent.update(__MODULE__, fn state ->
-      %{state | variable_blocks: Enum.drop(state.variable_blocks, -1)}
+      %{
+        state
+        | variable_blocks: Enum.drop(state.variable_blocks, -1)
+      }
     end)
   end
 
@@ -50,7 +56,9 @@ defmodule ExScript.State do
 
   def variables do
     Agent.get(__MODULE__, fn state ->
-      Enum.uniq(List.last(state.variable_blocks))
+      state.variable_blocks
+      |> List.last()
+      |> Enum.uniq()
     end)
   end
 

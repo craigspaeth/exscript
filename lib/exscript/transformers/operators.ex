@@ -101,9 +101,10 @@ defmodule ExScript.Transformers.Operators do
     }
   end
 
-  def transform_pipeline({_, _, [arg | [fn_call]]}) do
-    {{_, _, [{_, _, [mod_name]}, fn_name]}, _, extra_args} = fn_call
-    Common.module_function_call(mod_name, fn_name, [arg | extra_args])
+  def transform_pipeline({_, _, [arg | [fn_call]]} = ast) do
+    fn_call_ast = Compile.transform!(fn_call)
+    full_args_ast = [Compile.transform!(arg)] ++ fn_call_ast.arguments
+    %{fn_call_ast | arguments: full_args_ast}
   end
 
   def transform_string_interpolation({_, _, elements}) do

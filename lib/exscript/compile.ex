@@ -10,24 +10,33 @@ defmodule ExScript.Compile do
   @cwd File.cwd!()
 
   def compile!(code) do
+    app_code =
+      code
+      |> Code.string_to_quoted!()
+      |> to_js!
+
+    """
+    (() => {
+      #{runtime};
+      #{app_code};
+      window.ExScript = ExScript;
+    })()
+    """
+  end
+
+  def runtime do
     stdlib =
-      File.read!("lib/exscript/stdlib/enum.ex")
+      (File.read!(@cwd <> "/lib/exscript/stdlib/enum.ex") <>
+         File.read!(@cwd <> "/lib/exscript/stdlib/map.ex") <>
+         File.read!(@cwd <> "/lib/exscript/stdlib/string.ex"))
       |> Code.string_to_quoted!()
       |> ExScript.Compile.to_js!()
       |> String.split("\n")
       |> Enum.drop(-1)
       |> Enum.join("\n")
 
-    runtime =
-      File.read!("lib/exscript/stdlib/pre.js") <>
-        stdlib <> File.read!("lib/exscript/stdlib/post.js")
-
-    app_code =
-      code
-      |> Code.string_to_quoted!()
-      |> to_js!
-
-    runtime <> app_code
+    File.read!(@cwd <> "/lib/exscript/stdlib/pre.js") <>
+      stdlib <> File.read!(@cwd <> "/lib/exscript/stdlib/post.js")
   end
 
   def to_js!(ast) do
@@ -76,15 +85,6 @@ defmodule ExScript.Compile do
                   transform_property_access(ast)
               end
 
-            token == :__aliases__ ->
-              transform_module_reference(ast)
-
-            token == :@ ->
-              transform_module_attribute(ast)
-
-            token == :for ->
-              transform_comprehension(ast)
-
             true ->
               transform_non_literal(ast)
           end
@@ -121,6 +121,15 @@ defmodule ExScript.Compile do
 
   defp transform_non_literal({token, callee, args} = ast) do
     cond do
+      token == :__aliases__ ->
+        transform_module_reference(ast)
+
+      token == :@ ->
+        transform_module_attribute(ast)
+
+      token == :for ->
+        transform_comprehension(ast)
+
       token == :if ->
         transform_if(ast)
 
@@ -168,6 +177,9 @@ defmodule ExScript.Compile do
 
       args == nil ->
         %{type: "Identifier", name: token}
+
+      token == :& ->
+        transform_function_capturing(ast)
 
       is_list(args) ->
         transform_local_function(ast)

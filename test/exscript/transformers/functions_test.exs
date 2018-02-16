@@ -166,7 +166,7 @@ defmodule ExScript.Compiler.FunctionsTest do
       """,
       """
       let a;
-      a = [new ExScript.Types.Tuple(Symbol('foo'), () => {
+      a = [new Tuple(Symbol('foo'), () => {
               return 'bar';
           })];
       """
@@ -234,6 +234,97 @@ defmodule ExScript.Compiler.FunctionsTest do
           return i + acc;
       });
       const {Enum} = ExScript.Modules;
+      """
+    )
+  end
+
+  test "compiles function capturing" do
+    ExScript.TestHelper.compare(
+      """
+      IO.puts(&IO.puts)
+      """,
+      """
+      IO.puts(IO.puts);
+      const {IO} = ExScript.Modules;
+      """
+    )
+  end
+
+  test "compiles simple function capture shortcuts" do
+    ExScript.TestHelper.compare(
+      """
+      fun = &(&1 + 1 + &2)
+      """,
+      """
+      let fun;
+      fun = (arg1, arg2) => {
+          return arg1 + 1 + arg2;
+      };
+      """
+    )
+  end
+
+  test "compiles function capture shortcuts" do
+    ExScript.TestHelper.compare(
+      """
+      defmodule Foo do
+        def foo(i), do: i + 1
+      end
+      Enum.map [1,2,3], &Foo.foo &1
+      """,
+      """
+      ExScript.Modules.Foo = {
+          foo(i) {
+              return i + 1;
+          }
+      };
+      Enum.map([
+          1,
+          2,
+          3
+      ], arg1 => {
+          return Foo.foo(arg1);
+      });
+      const {Enum, Foo} = ExScript.Modules;
+      """
+    )
+  end
+
+  test "compiles pattern tuples inside anonymous function bodies" do
+    ExScript.TestHelper.compare(
+      """
+      Enum.map(fn ({k, v}) ->
+        k = String.replace "ab", "b"
+        {k, v}
+      end)
+      """,
+      """
+      Enum.map(([k, v]) => {
+          k = String.replace('ab', 'b');
+          return new Tuple(k, v);
+      });
+      const {Enum, String} = ExScript.Modules;
+      """
+    )
+  end
+
+  test "compiles nested functions with reassignment" do
+    ExScript.TestHelper.compare(
+      """
+      fn (a) ->
+        a = fn (b) ->
+          b = "a"
+        end
+      end
+      """,
+      """
+      a => {
+          a = b => {
+              b = 'a';
+              return b;
+          };
+          return a;
+      };
       """
     )
   end

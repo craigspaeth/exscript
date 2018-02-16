@@ -63,6 +63,28 @@ defmodule ExScript.Compiler.ModulesTest do
     )
   end
 
+  test "compiles private module functions" do
+    ExScript.TestHelper.compare(
+      """
+      defmodule Hello.World do
+        defp hi do
+          a = 1
+          a
+        end
+      end
+      """,
+      """
+      ExScript.Modules.HelloWorld = {
+          hi() {
+              let a;
+              a = 1;
+              return a;
+          }
+      };
+      """
+    )
+  end
+
   test "compiles basic function calls" do
     ExScript.TestHelper.compare(
       """

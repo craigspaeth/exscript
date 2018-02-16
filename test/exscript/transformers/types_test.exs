@@ -24,12 +24,15 @@ defmodule ExScript.Compiler.TypesTest do
   end
 
   test "compiles tuples" do
-    js = ExScript.Compile.to_js!(quote do: a = {"a", "b"})
-
-    assert js <> "\n" == """
-           let a;
-           a = new ExScript.Types.Tuple('a', 'b');
-           """
+    ExScript.TestHelper.compare(
+      """
+      a = {"a", "b"}
+      """,
+      """
+      let a;
+      a = new Tuple('a', 'b');
+      """
+    )
   end
 
   test "compiles maps" do

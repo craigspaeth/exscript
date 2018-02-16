@@ -10,22 +10,8 @@ defmodule ExScript.Transformers.Types do
     %{
       type: "NewExpression",
       callee: %{
-        type: "MemberExpression",
-        object: %{
-          type: "MemberExpression",
-          object: %{
-            type: "Identifier",
-            name: "ExScript"
-          },
-          property: %{
-            type: "MemberExpression",
-            name: "Types"
-          }
-        },
-        property: %{
-          type: "MemberExpression",
-          name: "Tuple"
-        }
+        type: "Identifier",
+        name: "Tuple"
       },
       arguments:
         ast
