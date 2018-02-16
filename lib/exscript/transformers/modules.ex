@@ -19,7 +19,7 @@ defmodule ExScript.Transformers.Modules do
         [method_or_methods]
       end
 
-    methods = Enum.filter(methods, fn {key, _, _} -> key == :def end)
+    methods = Enum.filter(methods, fn {key, _, _} -> key == :def or key == :defp end)
     namespace = Enum.join(namespaces, "")
 
     %{
@@ -70,20 +70,7 @@ defmodule ExScript.Transformers.Modules do
     end
   end
 
-  def transform_local_function({:&, _, [{_, _, [{fn_name, _, _}, _]}]}) do
-    %{
-      type: "MemberExpression",
-      object: %{
-        type: "ThisExpression"
-      },
-      property: %{
-        type: "Identifier",
-        name: fn_name
-      }
-    }
-  end
-
-  def transform_local_function({fn_name, _, args}) do
+  def transform_local_function({fn_name, _, args}) when fn_name != :& do
     %{
       type: "CallExpression",
       arguments: Compile.transform_list!(args),

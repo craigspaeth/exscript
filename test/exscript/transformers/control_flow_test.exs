@@ -131,4 +131,24 @@ defmodule ExScript.Compiler.ControlFlowTest do
       """
     )
   end
+
+  test "compiles variable reassignment considering function args" do
+    ExScript.TestHelper.compare(
+      """
+      fn (a) ->
+        c = "foo"
+        a = "bar" <> c
+        a
+      end
+      """,
+      """
+      a => {
+          let c;
+          c = 'foo';
+          a = 'bar' + c;
+          return a;
+      };
+      """
+    )
+  end
 end

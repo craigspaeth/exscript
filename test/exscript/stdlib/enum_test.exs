@@ -1,4 +1,4 @@
-defmodule ExScript.Stdlib.Enum do
+defmodule ExScript.Stdlib.EnumTest do
   use ExUnit.Case
 
   test "implements Enum.map/2" do

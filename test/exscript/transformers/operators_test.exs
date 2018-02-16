@@ -58,6 +58,17 @@ defmodule ExScript.Compiler.OperatorsTest do
     )
   end
 
+  test "compiles pipelines with local function calls" do
+    ExScript.TestHelper.compare(
+      """
+      :a@b |> to_string()
+      """,
+      """
+      this.to_string(Symbol('a@b'));
+      """
+    )
+  end
+
   test "compiles pipeline operator with extra args" do
     ExScript.TestHelper.compare(
       """
@@ -108,7 +119,7 @@ defmodule ExScript.Compiler.OperatorsTest do
       """,
       """
       let a, b;
-      [a, b] = new ExScript.Types.Tuple('a', 'b');
+      [a, b] = new Tuple('a', 'b');
       """
     )
   end

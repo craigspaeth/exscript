@@ -49,4 +49,94 @@ defmodule ExScript.Transformers.Functions do
       }
     }
   end
+
+  def transform_external_function_call({
+        {_, _, [{callee_name, _, namespaces}, fn_name]},
+        _,
+        args
+      })
+      when is_nil(namespaces) do
+    %{
+      type: "CallExpression",
+      arguments: Enum.map(args, &Compile.transform!(&1)),
+      callee: %{
+        type: "MemberExpression",
+        arguments: [],
+        object: %{
+          type: "Identifier",
+          name: callee_name
+        },
+        property: %{
+          type: "Identifier",
+          name: fn_name
+        }
+      }
+    }
+  end
+
+  def transform_function_capturing({_, _, [callee]}) do
+    case callee do
+      c when is_number(c) ->
+        %{
+          type: "Identifier",
+          name: "arg#{callee}"
+        }
+
+      {:/, _, [{fn_name, _, _}, _]} ->
+        %{
+          type: "MemberExpression",
+          object: %{
+            type: "ThisExpression"
+          },
+          property: %{
+            type: "Identifier",
+            name: fn_name
+          }
+        }
+
+      {{_, _, _}, _, _} ->
+        args = args_from_shortcuts(callee)
+
+        if length(args) == 0 do
+          transform_external_function_call(callee)[:callee]
+        else
+          Common.function_expression(:arrow, args, callee)
+        end
+
+      _ ->
+        Common.function_expression(:arrow, args_from_shortcuts(callee), callee)
+    end
+  end
+
+  defp args_from_shortcuts(callee) do
+    {_, _, args} = callee
+
+    if length(args) > 0 do
+      total_args = count_shortcuts(args, 0)
+
+      for i <- 1..total_args do
+        {"arg#{i}", nil, nil}
+      end
+    else
+      []
+    end
+  end
+
+  defp count_shortcuts(args, count) do
+    total =
+      for {token, _, args} <- args do
+        cond do
+          token == :& and is_number(List.first(args)) ->
+            1
+
+          length(args) > 0 ->
+            count_shortcuts(args, count)
+
+          true ->
+            0
+        end
+      end
+
+    Enum.reduce(List.flatten(total), &(&1 + &2))
+  end
 end
