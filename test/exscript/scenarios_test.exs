@@ -35,12 +35,11 @@ defmodule ExScript.Compile.ScenariosTest do
                       return Keyword.merge(acc, style_map);
                   })), ([k, v]) => {
                       k = String.replace(this.to_string(k), '_', '-');
-                      return new Tuple(k, v);
+                      return new Tup(k, v);
                   }), {});
               })() : null;
           }
       };
-      const {String, Kernel, Enum, Keyword} = ExScript.Modules;
       """
     )
   end

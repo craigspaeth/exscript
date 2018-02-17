@@ -19,4 +19,21 @@ defmodule ExScript.Stdlib.Enum do
   def at(e, index) do
     JS.embed("e[index]")
   end
+
+  def member?(enumerable, element) do
+    reduce enumerable, false, fn (i, acc) -> acc or i == element end
+  end
+
+  def with_index(enumerable) do
+    JS.embed "let __i = 0"
+    for i <- enumerable do
+      JS.embed "__i++"
+      index = JS.embed("__i - 1")
+      {i, index}
+    end
+  end
+
+  def reverse(enumerable) do
+    JS.embed "enumerable.slice().reverse()"
+  end
 end

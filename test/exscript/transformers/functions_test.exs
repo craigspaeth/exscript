@@ -36,13 +36,13 @@ defmodule ExScript.Compiler.FunctionsTest do
 
   test "compiles kernel functions" do
     js = ExScript.Compile.to_js!(quote do: is_boolean(true))
-    assert js == "Kernel.is_boolean(true);\nconst {Kernel} = ExScript.Modules;"
+    assert js == "Kernel.is_boolean(true);"
     js = ExScript.Compile.to_js!(quote do: is_list(true))
-    assert js == "Kernel.is_list(true);\nconst {Kernel} = ExScript.Modules;"
+    assert js == "Kernel.is_list(true);"
     js = ExScript.Compile.to_js!(quote do: is_nil(true))
-    assert js == "Kernel.is_nil(true);\nconst {Kernel} = ExScript.Modules;"
+    assert js == "Kernel.is_nil(true);"
     js = ExScript.Compile.to_js!(quote do: length("a"))
-    assert js == "Kernel.length('a');\nconst {Kernel} = ExScript.Modules;"
+    assert js == "Kernel.length('a');"
   end
 
   test "compiles kernel functions in function body" do
@@ -59,7 +59,6 @@ defmodule ExScript.Compiler.FunctionsTest do
           a = 1;
           return Kernel.length(a);
       };
-      const {Kernel} = ExScript.Modules;
       """
     )
   end
@@ -154,7 +153,6 @@ defmodule ExScript.Compiler.FunctionsTest do
       """,
       """
       Keyword['keyword?']('a');
-      const {Keyword} = ExScript.Modules;
       """
     )
   end
@@ -166,7 +164,7 @@ defmodule ExScript.Compiler.FunctionsTest do
       """,
       """
       let a;
-      a = [new Tuple(Symbol('foo'), () => {
+      a = [new Tup(Symbol('foo'), () => {
               return 'bar';
           })];
       """
@@ -233,7 +231,6 @@ defmodule ExScript.Compiler.FunctionsTest do
       ], (i, acc) => {
           return i + acc;
       });
-      const {Enum} = ExScript.Modules;
       """
     )
   end
@@ -245,7 +242,6 @@ defmodule ExScript.Compiler.FunctionsTest do
       """,
       """
       IO.puts(IO.puts);
-      const {IO} = ExScript.Modules;
       """
     )
   end
@@ -285,7 +281,7 @@ defmodule ExScript.Compiler.FunctionsTest do
       ], arg1 => {
           return Foo.foo(arg1);
       });
-      const {Enum, Foo} = ExScript.Modules;
+      const {Foo} = ExScript.Modules;
       """
     )
   end
@@ -301,9 +297,8 @@ defmodule ExScript.Compiler.FunctionsTest do
       """
       Enum.map(([k, v]) => {
           k = String.replace('ab', 'b');
-          return new Tuple(k, v);
+          return new Tup(k, v);
       });
-      const {Enum, String} = ExScript.Modules;
       """
     )
   end
@@ -324,6 +319,23 @@ defmodule ExScript.Compiler.FunctionsTest do
               return b;
           };
           return a;
+      };
+      """
+    )
+  end
+
+  test "compiles pattern matching in returns" do
+    ExScript.TestHelper.compare(
+      """
+      fn ->
+        {k, v} = {"a", "b"}
+      end
+      """,
+      """
+      () => {
+          let k, v;
+          [k, v] = new Tup('a', 'b');
+          return new Tup(k, v);
       };
       """
     )

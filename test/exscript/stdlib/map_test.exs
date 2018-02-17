@@ -6,4 +6,10 @@ defmodule ExScript.Stdlib.MapTest do
       Map.merge %{a: "b"}, %{c: "d"}
     """)
   end
+
+  test "implements Map.put/2" do
+    ExScript.TestHelper.compare_eval("""
+      Map.put %{a: "b"}, :a, "c"
+    """)
+  end
 end

@@ -24,4 +24,27 @@ defmodule ExScript.Stdlib.EnumTest do
       Enum.at [0,1,3], 1
     """)
   end
+
+  test "implements Enum.member?/2" do
+    ExScript.TestHelper.compare_eval("""
+      Enum.member? [0,1,2], 1
+    """)
+    ExScript.TestHelper.compare_eval("""
+      Enum.member? [0,1,2], 4
+    """)
+  end
+
+  test "implements Enum.with_index?/2" do
+    ExScript.TestHelper.compare_eval("""
+      for {el, index} <- Enum.with_index([0,1,2]) do
+        [el, index]
+      end
+    """)
+  end
+
+  test "implements Enum.reverse/1" do
+    ExScript.TestHelper.compare_eval("""
+      Enum.reverse [1,2]
+    """)
+  end
 end

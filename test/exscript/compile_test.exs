@@ -37,7 +37,6 @@ defmodule ExScript.Compile.CompileTest do
                b = 'b';
                return b;
            };
-           const {JS} = ExScript.Modules;
            """
   end
 end

@@ -92,7 +92,6 @@ defmodule ExScript.Compiler.ModulesTest do
       """,
       """
       IO.puts('a');
-      const {IO} = ExScript.Modules;
       """
     )
   end
@@ -110,7 +109,6 @@ defmodule ExScript.Compiler.ModulesTest do
       ], i => {
           return i + 1;
       });
-      const {Enum} = ExScript.Modules;
       """
     )
   end
@@ -226,6 +224,23 @@ defmodule ExScript.Compiler.ModulesTest do
     )
   end
 
+  test "compiles ? module functions" do
+    ExScript.TestHelper.compare(
+      """
+      defmodule Hello.World do
+        def hi, do: bai?()
+      end
+      """,
+      """
+      ExScript.Modules.HelloWorld = {
+          hi() {
+              return this['bai?']();
+          }
+      };
+      """
+    )
+  end
+
   test "compiles local module function references" do
     ExScript.TestHelper.compare(
       """
@@ -257,7 +272,6 @@ defmodule ExScript.Compiler.ModulesTest do
       """,
       """
       IO.puts(IO);
-      const {IO} = ExScript.Modules;
       """
     )
   end
@@ -315,7 +329,6 @@ defmodule ExScript.Compiler.ModulesTest do
       """
       IO.puts('foo');
       JS.log('bar');
-      const {IO, JS} = ExScript.Modules;
       """
     )
   end
@@ -334,7 +347,6 @@ defmodule ExScript.Compiler.ModulesTest do
       a = () => {
           return JS.foo('baz');
       };
-      const {JS} = ExScript.Modules;
       """
     )
   end
@@ -346,7 +358,23 @@ defmodule ExScript.Compiler.ModulesTest do
       """,
       """
       IO.puts(IO);
-      const {IO} = ExScript.Modules;
+      """
+    )
+  end
+
+  test "compiles ? methods" do
+    ExScript.TestHelper.compare(
+      """
+      defmodule Foo do
+        def foo?, do: "foo"
+      end
+      """,
+      """
+      ExScript.Modules.Foo = {
+          "foo?"() {
+              return 'foo';
+          }
+      };
       """
     )
   end
