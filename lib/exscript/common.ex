@@ -90,78 +90,8 @@ defmodule ExScript.Common do
   def function_expression(type, args, return_val) do
     args = args || []
 
-    params =
-      Enum.map(args, fn ast ->
-        case ast do
-          {_, _, [{key_name, {val_name, _, _}}]} ->
-            %{
-              type: "ObjectPattern",
-              properties: [
-                %{
-                  type: "Property",
-                  key: %{
-                    type: "Identifier",
-                    name: key_name
-                  },
-                  value: %{
-                    type: "Identifier",
-                    name: val_name
-                  }
-                }
-              ]
-            }
-
-          {{left_name, _, _}, {right_name, _, _}} ->
-            %{
-              type: "ArrayPattern",
-              elements: [
-                %{
-                  type: "Identifier",
-                  name: left_name
-                },
-                %{
-                  type: "Identifier",
-                  name: right_name
-                }
-              ]
-            }
-
-          {:{}, _, els} ->
-            %{
-              type: "ArrayPattern",
-              elements:
-                Enum.map(els, fn {name, _, _} ->
-                  %{
-                    type: "Identifier",
-                    name: name
-                  }
-                end)
-            }
-
-          {var_name, _, _} ->
-            %{type: "Identifier", name: var_name}
-        end
-      end)
-
-    var_names =
-      List.flatten(
-        Enum.map(args, fn ast ->
-          case ast do
-            {_, _, [{key_name, {val_name, _, _}}]} ->
-              key_name
-
-            {{left_name, _, _}, {right_name, _, _}} ->
-              [left_name, right_name]
-
-            {:{}, _, els} ->
-              Enum.map(els, fn {name, _, _} -> name end)
-
-            {var_name, _, _} ->
-              var_name
-          end
-        end)
-      )
-
+    params = Enum.map(args, &transform_arg/1)
+    var_names = List.flatten(Enum.map(args, &var_name_from_arg/1))
     %{
       type:
         case type do
@@ -171,6 +101,68 @@ defmodule ExScript.Common do
       params: params,
       body: %{type: "BlockStatement", body: return_block(return_val, var_names)}
     }
+  end
+
+  defp var_name_from_arg(arg) do
+    case arg do
+      {_, _, [{key_name, {val_name, _, _}}]} ->
+        key_name
+
+      {left, right} ->
+        [var_name_from_arg(left), var_name_from_arg(right)]
+
+      {:{}, _, els} ->
+        Enum.map(els, fn {name, _, _} -> name end)
+
+      {var_name, _, _} ->
+        var_name
+    end
+  end
+
+  defp transform_arg(arg) do
+    case arg do
+      {_, _, [{key_name, {val_name, _, _}}]} ->
+        %{
+          type: "ObjectPattern",
+          properties: [
+            %{
+              type: "Property",
+              key: %{
+                type: "Identifier",
+                name: key_name
+              },
+              value: %{
+                type: "Identifier",
+                name: val_name
+              }
+            }
+          ]
+        }
+
+      {left, right} ->
+        %{
+          type: "ArrayPattern",
+          elements: [
+            transform_arg(left),
+            transform_arg(right)
+          ]
+        }
+
+      {:{}, _, els} ->
+        %{
+          type: "ArrayPattern",
+          elements:
+            Enum.map(els, fn {name, _, _} ->
+              %{
+                type: "Identifier",
+                name: name
+              }
+            end)
+        }
+
+      {var_name, _, _} ->
+        %{type: "Identifier", name: var_name}
+    end
   end
 
   def with_declared_vars(body_generator, ignore_names \\ []) do
@@ -207,13 +199,13 @@ defmodule ExScript.Common do
   defp dont_return_assignment(ast) do
     case ast do
       {key, _, body} when key == := ->
-        [{var_name, _, _}, _] = body
+        [var, _] = body
 
         [
           Compile.transform!(ast),
           %{
             type: "ReturnStatement",
-            argument: %{type: "Identifier", name: var_name}
+            argument: Compile.transform!(var)
           }
         ]
 

@@ -30,7 +30,7 @@ defmodule ExScript.Compiler.TypesTest do
       """,
       """
       let a;
-      a = new Tuple('a', 'b');
+      a = new Tup('a', 'b');
       """
     )
   end
@@ -40,7 +40,6 @@ defmodule ExScript.Compiler.TypesTest do
 
     assert js <> "\n" == """
            ({ foo: IO.puts() });
-           const {IO} = ExScript.Modules;
            """
   end
 

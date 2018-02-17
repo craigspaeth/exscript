@@ -20,7 +20,10 @@ defmodule ExScript.State do
 
   def hoist_module_namespace(mod_name) do
     Agent.update(__MODULE__, fn state ->
-      %{state | modules: Enum.uniq(state.modules ++ [to_string(mod_name)])}
+      modules = (state.modules ++ [to_string(mod_name)])
+      |> Enum.uniq()
+      |> Enum.reject(&Enum.member? ExScript.Compile.stdlib_module_names, &1)
+      %{state | modules: modules}
     end)
   end
 

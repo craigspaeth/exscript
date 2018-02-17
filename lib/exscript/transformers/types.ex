@@ -11,7 +11,7 @@ defmodule ExScript.Transformers.Types do
       type: "NewExpression",
       callee: %{
         type: "Identifier",
-        name: "Tuple"
+        name: "Tup"
       },
       arguments:
         ast

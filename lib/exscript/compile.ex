@@ -25,18 +25,32 @@ defmodule ExScript.Compile do
   end
 
   def runtime do
-    stdlib =
-      (File.read!(@cwd <> "/lib/exscript/stdlib/enum.ex") <>
-         File.read!(@cwd <> "/lib/exscript/stdlib/map.ex") <>
-         File.read!(@cwd <> "/lib/exscript/stdlib/string.ex"))
-      |> Code.string_to_quoted!()
-      |> ExScript.Compile.to_js!()
-      |> String.split("\n")
-      |> Enum.drop(-1)
-      |> Enum.join("\n")
+    stdlib = "#{@cwd}/lib/exscript/stdlib/*.ex"
+    |> Path.wildcard()
+    |> Enum.map(&File.read! &1)
+    |> Enum.join()
+    |> Code.string_to_quoted!()
+    |> ExScript.Compile.to_js!()
+    |> String.split("\n")
+    |> Enum.drop(-1)
+    |> Enum.join("\n")
+    res = Enum.join([
+      File.read!(@cwd <> "/lib/exscript/stdlib/pre.js"),
+      stdlib,
+      File.read!(@cwd <> "/lib/exscript/stdlib/post.js"),
+      "const {#{Enum.join stdlib_module_names, ", "}} = ExScript.Modules;"
+    ])
+  end
 
-    File.read!(@cwd <> "/lib/exscript/stdlib/pre.js") <>
-      stdlib <> File.read!(@cwd <> "/lib/exscript/stdlib/post.js")
+  def stdlib_module_names do
+    "#{@cwd}/lib/exscript/stdlib/*.ex"
+    |> Path.wildcard()
+    |> Enum.map(
+      &Path.basename(&1)
+      |> String.split(".")
+      |> List.first()
+      |> (fn (s) -> if s in ["js", "io"], do: String.upcase(s), else: String.capitalize(s) end).()
+    )
   end
 
   def to_js!(ast) do

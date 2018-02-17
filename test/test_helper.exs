@@ -21,8 +21,14 @@ defmodule ExScript.TestHelper do
       |> Code.string_to_quoted!()
       |> ExScript.Compile.to_js!()
 
-    code = "#{runtime} #{js_code} process.stdout.write(JSON.stringify(out()))"
+    code = "(() => { #{runtime} #{js_code} process.stdout.write(JSON.stringify(out())) })()"
     {json, _} = System.cmd("node", ["-e", code])
-    assert ex_res == Poison.Parser.parse!(json, keys: :atoms)
+    # IO.puts code
+    case Poison.Parser.parse(json, keys: :atoms) do
+      {:ok, js_res} -> assert ex_res == js_res
+      {:error, _} ->
+        IO.puts json
+        raise "Failure"
+      end
   end
 end

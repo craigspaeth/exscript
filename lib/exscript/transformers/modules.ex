@@ -40,7 +40,11 @@ defmodule ExScript.Transformers.Modules do
           for method <- methods do
             {_, _, body} = method
             [{method_name, _, args}, [{_, return_val}]] = body
-
+            method_name = if String.contains?(Atom.to_string(method_name), "?") do
+              "\"#{method_name}\""
+            else
+              method_name
+            end
             %{
               type: "Property",
               method: true,
@@ -71,18 +75,28 @@ defmodule ExScript.Transformers.Modules do
   end
 
   def transform_local_function({fn_name, _, args}) when fn_name != :& do
+    is_question = String.contains?(Atom.to_string(fn_name), "?")
     %{
       type: "CallExpression",
       arguments: Compile.transform_list!(args),
       callee: %{
         type: "MemberExpression",
+        computed: is_question,
         object: %{
           type: "ThisExpression"
         },
-        property: %{
-          type: "Identifier",
-          name: fn_name
-        }
+        property: if is_question do
+          %{
+            raw: "\"#{fn_name}\"",
+            type: "Literal",
+            value: Atom.to_string(fn_name)
+          }
+        else
+          %{
+            type: "Identifier",
+            name: fn_name
+          }
+        end
       }
     }
   end

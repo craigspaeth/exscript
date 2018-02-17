@@ -53,7 +53,6 @@ defmodule ExScript.Compiler.OperatorsTest do
       """,
       """
       IO.puts('a');
-      const {IO} = ExScript.Modules;
       """
     )
   end
@@ -76,7 +75,6 @@ defmodule ExScript.Compiler.OperatorsTest do
       """,
       """
       String.split('a,b', ',');
-      const {String} = ExScript.Modules;
       """
     )
   end
@@ -119,7 +117,7 @@ defmodule ExScript.Compiler.OperatorsTest do
       """,
       """
       let a, b;
-      [a, b] = new Tuple('a', 'b');
+      [a, b] = new Tup('a', 'b');
       """
     )
   end
@@ -197,7 +195,6 @@ defmodule ExScript.Compiler.OperatorsTest do
       """,
       """
       !IO.puts() ? 'hi' : 'bai';
-      const {IO} = ExScript.Modules;
       """
     )
   end
