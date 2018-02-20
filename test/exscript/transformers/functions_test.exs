@@ -79,6 +79,25 @@ defmodule ExScript.Compiler.FunctionsTest do
     )
   end
 
+  @tag :skip
+  test "compiles function calls on a property" do
+    ExScript.TestHelper.compare(
+      """
+      a = %{foo: fn () -> "foo" end}
+      a.foo
+      """,
+      """
+      let a;
+      a = {
+          foo: () => {
+              return 'foo';
+          }
+      };
+      a.foo();
+      """
+    )
+  end
+
   test "compiles blocks that return assignment" do
     ExScript.TestHelper.compare(
       """

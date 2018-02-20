@@ -17,7 +17,7 @@ defmodule ExScript.Compile do
 
     """
     (() => {
-      #{runtime};
+      #{runtime()};
       #{app_code};
       window.ExScript = ExScript;
     })()
@@ -34,11 +34,11 @@ defmodule ExScript.Compile do
     |> String.split("\n")
     |> Enum.drop(-1)
     |> Enum.join("\n")
-    res = Enum.join([
+    Enum.join([
       File.read!(@cwd <> "/lib/exscript/stdlib/pre.js"),
       stdlib,
       File.read!(@cwd <> "/lib/exscript/stdlib/post.js"),
-      "const {#{Enum.join stdlib_module_names, ", "}} = ExScript.Modules;"
+      "const {#{Enum.join stdlib_module_names(), ", "}} = ExScript.Modules;"
     ])
   end
 
