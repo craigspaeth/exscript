@@ -15,7 +15,7 @@ defmodule Mix.Tasks.Parse do
   end
 
   defp remove_start_end(map) do
-    ignore_keys = [:end, :start, :computed, :method]
+    ignore_keys = [:end, :start, :method]
 
     for {k, v} <- map, not Enum.member?(ignore_keys, k), into: %{} do
       cond do

@@ -20,16 +20,26 @@ defmodule ExScript.Transformers.Types do
     }
   end
 
-  def transform_map({_, _, args}) do
+  def transform_map({_, _, args} = ast) do
     %{
       type: "ObjectExpression",
       properties:
         for {key, val} <- args do
-          %{
-            type: "Property",
-            key: %{type: "Identifier", name: key},
-            value: Compile.transform!(val)
-          }
+          if is_tuple(key) do
+            {name, _, _} = key
+            %{
+              type: "Property",
+              computed: true,
+              key: %{type: "Identifier", name: name},
+              value: Compile.transform!(val)
+            }
+          else
+            %{
+              type: "Property",
+              key: %{type: "Identifier", name: key},
+              value: Compile.transform!(val)
+            }
+          end
         end
     }
   end

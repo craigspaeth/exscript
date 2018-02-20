@@ -7,6 +7,12 @@ defmodule ExScript.Stdlib.StringTest do
     """)
   end
 
+  test "implements String.replace/3" do
+    ExScript.TestHelper.compare_eval("""
+      String.replace "foobar", "bar", "baz"
+    """)
+  end
+
   @tag :skip
   test "implements String.to_atom/2" do
     ExScript.TestHelper.compare_eval("""
