@@ -79,6 +79,18 @@ defmodule ExScript.Compiler.FunctionsTest do
     )
   end
 
+  @tag :cur
+  test "compiles punctuated function calls on a property" do
+    ExScript.TestHelper.compare(
+      """
+      a.foo!("bar")
+      """,
+      """
+      a['foo!']('bar');
+      """
+    )
+  end
+
   @tag :skip
   test "compiles function calls on a property" do
     ExScript.TestHelper.compare(
@@ -161,17 +173,6 @@ defmodule ExScript.Compiler.FunctionsTest do
       ([a, b]) => {
           return a;
       };
-      """
-    )
-  end
-
-  test "compiles ? functions smartly" do
-    ExScript.TestHelper.compare(
-      """
-      Keyword.keyword?("a")
-      """,
-      """
-      Keyword['keyword?']('a');
       """
     )
   end

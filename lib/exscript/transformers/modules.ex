@@ -29,7 +29,8 @@ defmodule ExScript.Transformers.Modules do
         type: "MemberExpression",
         object: %{
           type: "MemberExpression",
-          object: %{type: "Identifier", name: "ExScript"},
+          object: %{type:
+           "Identifier", name: "ExScript"},
           property: %{type: "Identifier", name: "Modules"}
         },
         property: %{type: "Identifier", name: namespace}
@@ -40,7 +41,7 @@ defmodule ExScript.Transformers.Modules do
           for method <- methods do
             {_, _, body} = method
             [{method_name, _, args}, [{_, return_val}]] = body
-            method_name = if String.contains?(Atom.to_string(method_name), "?") do
+            method_name = if Common.is_punctuated(method_name) do
               "\"#{method_name}\""
             else
               method_name
@@ -75,29 +76,12 @@ defmodule ExScript.Transformers.Modules do
   end
 
   def transform_local_function({fn_name, _, args}) when fn_name != :& do
-    is_question = String.contains?(Atom.to_string(fn_name), "?")
     %{
       type: "CallExpression",
       arguments: Compile.transform_list!(args),
-      callee: %{
-        type: "MemberExpression",
-        computed: is_question,
-        object: %{
-          type: "ThisExpression"
-        },
-        property: if is_question do
-          %{
-            raw: "\"#{fn_name}\"",
-            type: "Literal",
-            value: Atom.to_string(fn_name)
-          }
-        else
-          %{
-            type: "Identifier",
-            name: fn_name
-          }
-        end
-      }
+      callee: Common.callee(%{
+        type: "ThisExpression"
+      }, fn_name)
     }
   end
 

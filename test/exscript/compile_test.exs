@@ -18,25 +18,45 @@ defmodule ExScript.Compile.CompileTest do
   end
 
   test "compiles embedded code" do
-    ast =
-      Code.string_to_quoted!("""
+    ExScript.TestHelper.compare(
+      """
       fn () ->
         a = "a"
         JS.embed "debugger"
         b = "b"
       end
-      """)
+      """,
+      """
+      () => {
+          let a, b;
+          a = 'a';
+          debugger;
+          b = 'b';
+          return b;
+      };
+      """
+    )
+  end
 
-    js = ExScript.Compile.to_js!(ast)
-
-    assert js <> "\n" == """
-           () => {
-               let a, b;
-               a = 'a';
-               debugger;
-               b = 'b';
-               return b;
-           };
-           """
+  @tag :skip
+  test "compiles multiline embedded code" do
+    ExScript.TestHelper.compare(
+      """
+      JS.embed(\"\"\"
+      class Foo extends Bar {
+        constructor() {
+          return 'hi';
+        }
+      }
+      \"\"\")
+      """,
+      """
+      class Foo extends Bar {
+        constructor() {
+          return 'hi';
+        }
+      }
+      """
+    )
   end
 end

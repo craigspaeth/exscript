@@ -378,4 +378,27 @@ defmodule ExScript.Compiler.ModulesTest do
       """
     )
   end
+
+  test "compiles ? functions smartly" do
+    ExScript.TestHelper.compare(
+      """
+      Keyword.keyword?("a")
+      """,
+      """
+      Keyword['keyword?']('a');
+      """
+    )
+  end
+
+  test "compiles ! functions smartly" do
+    ExScript.TestHelper.compare(
+      """
+      Foo.bar!("a")
+      """,
+      """
+      Foo['bar!']('a');
+      const {Foo} = ExScript.Modules;
+      """
+    )
+  end
 end

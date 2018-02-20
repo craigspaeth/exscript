@@ -103,17 +103,11 @@ defmodule ExScript.Transformers.Types do
         _,
         args
       }) do
+
     %{
       type: "CallExpression",
       arguments: Enum.map(args, &Compile.transform!(&1)),
-      callee: %{
-        type: "MemberExpression",
-        object: Compile.transform!(parent_ast),
-        property: %{
-          type: "Identifier",
-          name: key
-        }
-      }
+      callee: Common.callee(Compile.transform!(parent_ast), key)
     }
   end
 

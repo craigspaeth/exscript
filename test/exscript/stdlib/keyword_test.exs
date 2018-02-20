@@ -25,7 +25,6 @@ defmodule ExScript.Stdlib.KeywordTest do
     """)
   end
 
-  @tag :cur
   test "implements Keyword.keyword?/1" do
     ExScript.TestHelper.compare_eval("""
       Keyword.keyword?([a: "b"])
