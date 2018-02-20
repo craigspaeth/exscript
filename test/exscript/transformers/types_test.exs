@@ -86,7 +86,6 @@ defmodule ExScript.Compiler.TypesTest do
     )
   end
 
-  @tag :cur
   test "compiles dynamic map keys" do
     ExScript.TestHelper.compare(
       """

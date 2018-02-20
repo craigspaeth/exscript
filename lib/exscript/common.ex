@@ -17,32 +17,13 @@ defmodule ExScript.Common do
       [first] = js_ast["body"]
       first
     else
-      is_computed = fn_name |> Atom.to_string() |> String.contains?("?")
-
       %{
         type: "CallExpression",
         arguments: Compile.transform_list!(args),
-        callee: %{
-          type: "MemberExpression",
-          object: %{
-            type: "Identifier",
-            name: mod_name
-          },
-          property:
-            if is_computed do
-              %{
-                type: "Literal",
-                value: fn_name,
-                raw: fn_name
-              }
-            else
-              %{
-                type: "Identifier",
-                name: fn_name
-              }
-            end,
-          computed: is_computed
-        }
+        callee: callee(%{
+          type: "Identifier",
+          name: mod_name
+        }, fn_name)
       }
     end
   end
@@ -100,6 +81,63 @@ defmodule ExScript.Common do
         end,
       params: params,
       body: %{type: "BlockStatement", body: return_block(return_val, var_names)}
+    }
+  end
+
+
+  def with_declared_vars(body_generator, ignore_names \\ []) do
+    ExScript.State.start_block()
+    body = body_generator.()
+
+    var_names =
+      ExScript.State.variables()
+      |> Enum.reject(&Enum.member?(ignore_names, &1))
+
+    declarations =
+      Enum.map(var_names, fn var_name ->
+        %{
+          id: %{name: var_name, type: "Identifier"},
+          type: "VariableDeclarator"
+        }
+      end)
+
+    ExScript.State.end_block()
+
+    if length(declarations) > 0 do
+      variables = %{
+        declarations: declarations,
+        kind: "let",
+        type: "VariableDeclaration"
+      }
+
+      [variables] ++ body
+    else
+      body
+    end
+  end
+
+  def is_punctuated(fn_name) do
+    String.contains?(Atom.to_string(fn_name), "?") or
+    String.contains?(Atom.to_string(fn_name), "!")
+  end
+
+  def callee(parent_ast, fn_name) do
+    %{
+      type: "MemberExpression",
+      computed: is_punctuated(fn_name),
+      object: parent_ast,
+      property: if is_punctuated(fn_name) do
+        %{
+          raw: "\"#{fn_name}\"",
+          type: "Literal",
+          value: Atom.to_string(fn_name)
+        }
+      else
+        %{
+          type: "Identifier",
+          name: fn_name
+        }
+      end
     }
   end
 
@@ -162,37 +200,6 @@ defmodule ExScript.Common do
 
       {var_name, _, _} ->
         %{type: "Identifier", name: var_name}
-    end
-  end
-
-  def with_declared_vars(body_generator, ignore_names \\ []) do
-    ExScript.State.start_block()
-    body = body_generator.()
-
-    var_names =
-      ExScript.State.variables()
-      |> Enum.reject(&Enum.member?(ignore_names, &1))
-
-    declarations =
-      Enum.map(var_names, fn var_name ->
-        %{
-          id: %{name: var_name, type: "Identifier"},
-          type: "VariableDeclarator"
-        }
-      end)
-
-    ExScript.State.end_block()
-
-    if length(declarations) > 0 do
-      variables = %{
-        declarations: declarations,
-        kind: "let",
-        type: "VariableDeclaration"
-      }
-
-      [variables] ++ body
-    else
-      body
     end
   end
 
