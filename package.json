@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "dependencies": {
-    "acorn": "^5.1.1",
+    "acorn": "^5.5.0",
     "escodegen": "^1.8.1",
     "estree-formal": "^1.1.5",
     "nodemon": "^1.12.5",

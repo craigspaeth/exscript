@@ -56,6 +56,7 @@ defmodule ExScript.Transformers.Functions do
         args
       })
       when is_nil(namespaces) do
+
     %{
       type: "CallExpression",
       arguments: Enum.map(args, &Compile.transform!(&1)),

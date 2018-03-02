@@ -21,7 +21,7 @@ defmodule ExScript.TestHelper do
       |> Code.string_to_quoted!()
       |> ExScript.Compile.to_js!()
 
-    code = "(() => { #{runtime} #{js_code} process.stdout.write(JSON.stringify(out())) })()"
+    code = "(async () => { #{runtime} #{js_code} process.stdout.write(JSON.stringify(await out())) })()"
     {json, _} = System.cmd("node", ["-e", code])
     # IO.puts code
     case Poison.Parser.parse(json, keys: :atoms) do

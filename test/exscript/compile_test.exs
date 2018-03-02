@@ -38,6 +38,42 @@ defmodule ExScript.Compile.CompileTest do
     )
   end
 
+  test "compiles await calls into async/await functions" do
+    ExScript.TestHelper.compare(
+      """
+      fn () ->
+        res = await fetch()
+      end
+      """,
+      """
+      async () => {
+          let res;
+          res = await this.fetch();
+          return res;
+      };
+      """
+    )
+  end
+
+  test "compiles imports into mixins" do
+    ExScript.TestHelper.compare(
+      """
+      defmodule Foo do
+        import Bar
+        def foo, do: 1
+      end
+      """,
+      """
+      ExScript.Modules.Foo = {
+          ...ExScript.Modules.Bar,
+          foo() {
+              return 1;
+          }
+      };
+      """
+    )
+  end
+
   @tag :skip
   test "compiles multiline embedded code" do
     ExScript.TestHelper.compare(
