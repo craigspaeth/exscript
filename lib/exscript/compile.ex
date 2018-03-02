@@ -204,7 +204,7 @@ defmodule ExScript.Compile do
   end
 
   defp transform_block_statement({_, _, args}) do
-    body = with_declared_vars(fn -> transform_list!(args) end)
+    body = with_block_state(fn -> transform_list!(args) end).body
 
     for line <- body do
       if Enum.member?(["ExpressionStatement", "VariableDeclaration"], line[:type]) do

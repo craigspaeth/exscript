@@ -79,7 +79,6 @@ defmodule ExScript.Compiler.FunctionsTest do
     )
   end
 
-  @tag :cur
   test "compiles punctuated function calls on a property" do
     ExScript.TestHelper.compare(
       """

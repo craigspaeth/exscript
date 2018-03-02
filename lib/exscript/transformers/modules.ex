@@ -8,20 +8,55 @@ defmodule ExScript.Transformers.Modules do
 
   def transform_module({_, _, args}) do
     [{_, _, namespaces} | [body]] = args
-    [{_, method_or_methods} | _] = body
-    {key, _, _} = method_or_methods
+    [{_, statement_or_statements} | _] = body
+    {key, _, _} = statement_or_statements
 
-    methods =
+    statements =
       if key == :__block__ do
-        {_, _, methods} = method_or_methods
+        {_, _, methods} = statement_or_statements
         methods
       else
-        [method_or_methods]
+        [statement_or_statements]
       end
 
-    methods = Enum.filter(methods, fn {key, _, _} -> key == :def or key == :defp end)
+    imports = for {:import, _, [{_, _, namespaces}]} <- statements do
+      Enum.join(namespaces, "")
+    end
+    methods = Enum.filter(statements, fn {key, _, _} -> key == :def or key == :defp end)
     namespace = Enum.join(namespaces, "")
 
+
+    imports_ast = for mod_name <- imports do
+      %{
+        argument: %{
+          object: %{
+            object: %{name: "ExScript", type: "Identifier"},
+            property: %{name: "Modules", type: "Identifier"},
+            type: "MemberExpression"
+          },
+          property: %{name: mod_name, type: "Identifier"},
+          type: "MemberExpression"
+        },
+        type: "SpreadElement"
+      }
+    end
+    methods_ast = for method <- methods do
+      {_, _, body} = method
+      [{method_name, _, args}, [{_, return_val}]] = body
+      method_name = if Common.is_punctuated(method_name) do
+        "\"#{method_name}\""
+      else
+        method_name
+      end
+      %{
+        type: "Property",
+        method: true,
+        shorthand: false,
+        computed: false,
+        key: %{type: "Identifier", name: method_name},
+        value: Common.function_expression(:obj, args, return_val)
+      }
+    end
     %{
       type: "AssignmentExpression",
       operator: "=",
@@ -37,24 +72,7 @@ defmodule ExScript.Transformers.Modules do
       },
       right: %{
         type: "ObjectExpression",
-        properties:
-          for method <- methods do
-            {_, _, body} = method
-            [{method_name, _, args}, [{_, return_val}]] = body
-            method_name = if Common.is_punctuated(method_name) do
-              "\"#{method_name}\""
-            else
-              method_name
-            end
-            %{
-              type: "Property",
-              method: true,
-              shorthand: false,
-              computed: false,
-              key: %{type: "Identifier", name: method_name},
-              value: Common.function_expression(:obj, args, return_val)
-            }
-          end
+        properties: imports_ast ++ methods_ast
       }
     }
   end
@@ -73,6 +91,14 @@ defmodule ExScript.Transformers.Modules do
     case attr_type do
       :moduledoc -> nil
     end
+  end
+
+  def transform_local_function({fn_name, _, [arg]}) when fn_name == :await  do
+    ExScript.State.block_is_async()
+    %{
+      type: "AwaitExpression",
+      argument: Compile.transform!(arg)
+    }
   end
 
   def transform_local_function({fn_name, _, args}) when fn_name != :& do

@@ -32,5 +32,11 @@ defmodule ExScript.Stdlib.KeywordTest do
     ExScript.TestHelper.compare_eval("""
       Keyword.keyword?([[:a, "b"]])
     """)
+    ExScript.TestHelper.compare_eval("""
+      Keyword.keyword?([:a, "b"])
+    """)
+    ExScript.TestHelper.compare_eval("""
+      Keyword.keyword?(nil)
+    """)
   end
 end

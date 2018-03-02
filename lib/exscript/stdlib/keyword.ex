@@ -25,8 +25,16 @@ defmodule ExScript.Stdlib.Keyword do
   end
 
   def keyword?(keywords) do
-    [first | _] = keywords
-    {k, v} = first
-    is_atom(k) and is_tuple(first)
+    if keywords && length(keywords) > 0 do
+      [first | _] = keywords
+      if is_tuple(first) do
+        {k, v} = first
+        is_atom(k)
+      else
+        false
+      end
+    else
+      false
+    end
   end
 end

@@ -7,29 +7,29 @@ defmodule ExScript.Common do
 
   @cwd File.cwd!()
 
+  def module_function_call(mod_name, fn_name, args) when mod_name == "JS" and fn_name == :embed do
+    ExScript.State.hoist_module_namespace(mod_name)
+    [code] = args
+    cmd = "echo \"#{code}\" | #{@cwd}/node_modules/.bin/acorn"
+    js_ast = Poison.decode!(:os.cmd(String.to_charlist(cmd)))
+    [first] = js_ast["body"]
+    first
+  end
+
   def module_function_call(mod_name, fn_name, args) do
     ExScript.State.hoist_module_namespace(mod_name)
-
-    if fn_name == :embed do
-      [code] = args
-      cmd = "echo \"#{code}\" | #{@cwd}/node_modules/.bin/acorn"
-      js_ast = Poison.decode!(:os.cmd(String.to_charlist(cmd)))
-      [first] = js_ast["body"]
-      first
-    else
-      %{
-        type: "CallExpression",
-        arguments: Compile.transform_list!(args),
-        callee: callee(%{
-          type: "Identifier",
-          name: mod_name
-        }, fn_name)
-      }
-    end
+    %{
+      type: "CallExpression",
+      arguments: Compile.transform_list!(args),
+      callee: callee(%{
+        type: "Identifier",
+        name: mod_name
+      }, fn_name)
+    }
   end
 
   def return_block(ast, fn_arg_var_names \\ []) do
-    with_declared_vars(
+    with_block_state(
       fn ->
         case ast do
           {key, _, body} ->
@@ -73,19 +73,22 @@ defmodule ExScript.Common do
 
     params = Enum.map(args, &transform_arg/1)
     var_names = List.flatten(Enum.map(args, &var_name_from_arg/1))
+    %{body: body, async: async} = return_block(return_val, var_names)
+
     %{
+      async: async,
       type:
         case type do
           :arrow -> "ArrowFunctionExpression"
           :obj -> "FunctionExpression"
         end,
       params: params,
-      body: %{type: "BlockStatement", body: return_block(return_val, var_names)}
+      body: %{type: "BlockStatement", body: body}
     }
   end
 
 
-  def with_declared_vars(body_generator, ignore_names \\ []) do
+  def with_block_state(body_generator, ignore_names \\ []) do
     ExScript.State.start_block()
     body = body_generator.()
 
@@ -100,6 +103,7 @@ defmodule ExScript.Common do
           type: "VariableDeclarator"
         }
       end)
+    async = ExScript.State.block_async?
 
     ExScript.State.end_block()
 
@@ -109,10 +113,9 @@ defmodule ExScript.Common do
         kind: "let",
         type: "VariableDeclaration"
       }
-
-      [variables] ++ body
+      %{body: [variables] ++ body, async: async}
     else
-      body
+      %{body: body, async: async}
     end
   end
 

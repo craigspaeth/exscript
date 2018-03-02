@@ -7,7 +7,7 @@ defmodule Mix.Tasks.Parse do
 
   def run(_) do
     stdin = String.trim(IO.read(:all))
-    acorn_code = "require('acorn').parse('#{stdin}')"
+    acorn_code = "require('acorn').parse('#{stdin}', { ecmaVersion: 9 })"
     code = "process.stdout.write(JSON.stringify(#{acorn_code}))"
     {json, _} = System.cmd("node", ["-e", code])
     map = Poison.Parser.parse!(json, keys: :atoms)

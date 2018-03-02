@@ -9,7 +9,7 @@ defmodule ExScript.Transformers.ControlFlow do
   def transform_if({_, _, [test, [{_, consequent}, {_, alternate}]]}) do
     expr = fn body ->
       if is_tuple(body) do
-        Common.iife(Common.return_block(body))
+        Common.iife(Common.return_block(body).body)
       else
         Compile.transform!(body)
       end
@@ -30,7 +30,7 @@ defmodule ExScript.Transformers.ControlFlow do
           Compile.transform!(condition),
           %{
             type: "BlockStatement",
-            body: Common.return_block(body)
+            body: Common.return_block(body).body
           }
         ]
       end
@@ -72,7 +72,7 @@ defmodule ExScript.Transformers.ControlFlow do
           ),
           %{
             type: "BlockStatement",
-            body: Common.return_block(body)
+            body: Common.return_block(body).body
           }
         ]
       end

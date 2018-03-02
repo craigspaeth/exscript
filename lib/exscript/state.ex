@@ -9,7 +9,8 @@ defmodule ExScript.State do
 
   @init_state %{
     modules: [],
-    variable_blocks: [[]]
+    variable_blocks: [[]],
+    block_is_async: false
   }
   def init do
     Agent.start_link(
@@ -35,7 +36,8 @@ defmodule ExScript.State do
     Agent.update(__MODULE__, fn state ->
       %{
         state
-        | variable_blocks: state.variable_blocks ++ [[]]
+        | variable_blocks: state.variable_blocks ++ [[]],
+        block_is_async: false
       }
     end)
   end
@@ -43,8 +45,8 @@ defmodule ExScript.State do
   def end_block do
     Agent.update(__MODULE__, fn state ->
       %{
-        state
-        | variable_blocks: Enum.drop(state.variable_blocks, -1)
+        state |
+        variable_blocks: Enum.drop(state.variable_blocks, -1)
       }
     end)
   end
@@ -54,6 +56,18 @@ defmodule ExScript.State do
       new_vars = List.last(state.variable_blocks) ++ [var_name]
       new_blocks = List.replace_at(state.variable_blocks, -1, new_vars)
       %{state | variable_blocks: new_blocks}
+    end)
+  end
+
+  def block_is_async do
+    Agent.update(__MODULE__, fn state ->
+      %{state | block_is_async: true}
+    end)
+  end
+
+  def block_async? do
+    Agent.get(__MODULE__, fn state ->
+      state.block_is_async
     end)
   end
 
