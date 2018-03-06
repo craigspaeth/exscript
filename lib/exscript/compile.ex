@@ -83,7 +83,6 @@ defmodule ExScript.Compile do
       is_tuple(ast) ->
         try do
           {token, _, _} = ast
-
           cond do
             is_tuple(token) ->
               {_, _, parent} = token
@@ -188,6 +187,9 @@ defmodule ExScript.Compile do
 
       token == :defmodule ->
         transform_module(ast)
+
+      token == :{} ->
+        transform_tuple_literal(ast)
 
       args == nil ->
         %{type: "Identifier", name: token}

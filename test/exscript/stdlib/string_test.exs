@@ -13,10 +13,15 @@ defmodule ExScript.Stdlib.StringTest do
     """)
   end
 
-  @tag :skip
   test "implements String.to_atom/2" do
     ExScript.TestHelper.compare_eval("""
       String.to_atom "a"
+    """)
+  end
+
+  test "implements String.capitalize/1" do
+    ExScript.TestHelper.compare_eval("""
+      String.capitalize "foo"
     """)
   end
 end

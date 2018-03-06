@@ -19,4 +19,8 @@ defmodule ExScript.Stdlib.Kernel do
   def is_list(val) do
     JS.embed "val instanceof Array"
   end
+
+  def is_map(val) do
+    JS.embed "typeof val === 'object'"
+  end
 end

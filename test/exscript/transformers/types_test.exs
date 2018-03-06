@@ -50,6 +50,17 @@ defmodule ExScript.Compiler.TypesTest do
     )
   end
 
+  test "compiles 3+ length tuples" do
+    ExScript.TestHelper.compare(
+      """
+      {"a", "b", "c"}
+      """,
+      """
+      new Tup('a', 'b', 'c');
+      """
+    )
+  end
+
   test "compiles maps" do
     ExScript.TestHelper.compare(
       """

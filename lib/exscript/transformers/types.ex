@@ -6,6 +6,17 @@ defmodule ExScript.Transformers.Types do
   alias ExScript.Compile, as: Compile
   alias ExScript.Common, as: Common
 
+  def transform_tuple_literal({:{}, _, var_names}) do
+    %{
+      type: "NewExpression",
+      callee: %{
+        type: "Identifier",
+        name: "Tup"
+      },
+      arguments: Enum.map(var_names, &Compile.transform!(&1))
+    }
+  end
+
   def transform_tuple_literal(ast) do
     %{
       type: "NewExpression",

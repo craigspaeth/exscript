@@ -11,6 +11,9 @@ defmodule ExScript.Stdlib.EnumTest do
     ExScript.TestHelper.compare_eval("""
       Enum.reduce [1,2,3], 4, fn (i, acc) -> i + acc end
     """)
+    ExScript.TestHelper.compare_eval("""
+      Enum.reduce %{a: "b", b: "c"}, [], fn ({k,v}, acc) -> acc ++ [k] end
+    """)
   end
 
   test "implements Enum.join/2" do
