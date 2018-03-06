@@ -24,4 +24,13 @@ defmodule ExScript.Stdlib.KernelTest do
       Kernel.is_list [1, 2]
     """)
   end
+
+  test "implements Keyword.is_map?" do
+    ExScript.TestHelper.compare_eval("""
+      Kernel.is_map %{}
+    """)
+    ExScript.TestHelper.compare_eval("""
+      Kernel.is_map 1
+    """)
+  end
 end

@@ -122,6 +122,18 @@ defmodule ExScript.Compiler.OperatorsTest do
     )
   end
 
+  test "compiles advanced tuple pattern matching" do
+    ExScript.TestHelper.compare(
+      """
+      {a, b, c} = foo()
+      """,
+      """
+      let a, b, c;
+      [a, b, c] = this.foo();
+      """
+    )
+  end
+
   test "compiles <> operators" do
     ExScript.TestHelper.compare(
       """
