@@ -210,7 +210,7 @@ defmodule ExScript.Compiler.FunctionsTest do
       end
       """,
       """
-      ExScript.Modules.Foo = {
+      const Foo = {
           a() {
               let b, c;
               b = 'bar';
@@ -284,23 +284,26 @@ defmodule ExScript.Compiler.FunctionsTest do
       """
       defmodule Foo do
         def foo(i), do: i + 1
+        def bar() do
+          Enum.map [1,2,3], &Foo.foo &1
+        end
       end
-      Enum.map [1,2,3], &Foo.foo &1
       """,
       """
-      ExScript.Modules.Foo = {
+      const Foo = {
           foo(i) {
               return i + 1;
+          },
+          bar() {
+              return Enum.map([
+                  1,
+                  2,
+                  3
+              ], arg1 => {
+                  return Foo.foo(arg1);
+              });
           }
       };
-      Enum.map([
-          1,
-          2,
-          3
-      ], arg1 => {
-          return Foo.foo(arg1);
-      });
-      const {Foo} = ExScript.Modules;
       """
     )
   end

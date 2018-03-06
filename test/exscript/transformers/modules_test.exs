@@ -10,7 +10,7 @@ defmodule ExScript.Compiler.ModulesTest do
       end
       """,
       """
-      ExScript.Modules.HelloWorld = {
+      const HelloWorld = {
           hi() {
               return 'hi';
           },
@@ -32,7 +32,7 @@ defmodule ExScript.Compiler.ModulesTest do
       end
       """,
       """
-      ExScript.Modules.HelloWorld = {
+      const HelloWorld = {
           hi(a, b) {
               return a;
           }
@@ -52,7 +52,7 @@ defmodule ExScript.Compiler.ModulesTest do
       end
       """,
       """
-      ExScript.Modules.HelloWorld = {
+      const HelloWorld = {
           hi() {
               let a;
               a = 1;
@@ -74,7 +74,7 @@ defmodule ExScript.Compiler.ModulesTest do
       end
       """,
       """
-      ExScript.Modules.HelloWorld = {
+      const HelloWorld = {
           hi() {
               let a;
               a = 1;
@@ -126,17 +126,16 @@ defmodule ExScript.Compiler.ModulesTest do
       end
       """,
       """
-      ExScript.Modules.Hello = {
+      const Hello = {
           world(str) {
               return 'World' + str;
           }
       };
-      ExScript.Modules.Main = {
+      const Main = {
           init() {
               return Hello.world('Earth');
           }
       };
-      const {Hello} = ExScript.Modules;
       """
     )
   end
@@ -151,7 +150,7 @@ defmodule ExScript.Compiler.ModulesTest do
       end
       """,
       """
-      ExScript.Modules.Hello = {
+      const Hello = {
           world(mod) {
               return mod.fun('a');
           }
@@ -191,7 +190,7 @@ defmodule ExScript.Compiler.ModulesTest do
       end
       """,
       """
-      ExScript.Modules.Hello = {
+      const Hello = {
           bar() {
               return 'prop';
           },
@@ -212,7 +211,7 @@ defmodule ExScript.Compiler.ModulesTest do
       end
       """,
       """
-      ExScript.Modules.HelloWorld = {
+      const HelloWorld = {
           hi() {
               return this.bai();
           },
@@ -232,7 +231,7 @@ defmodule ExScript.Compiler.ModulesTest do
       end
       """,
       """
-      ExScript.Modules.HelloWorld = {
+      const HelloWorld = {
           hi() {
               return this['bai?']();
           }
@@ -250,7 +249,7 @@ defmodule ExScript.Compiler.ModulesTest do
       end
       """,
       """
-      ExScript.Modules.HelloWorld = {
+      const HelloWorld = {
           hi() {
               return [
                   Symbol('a'),
@@ -285,7 +284,7 @@ defmodule ExScript.Compiler.ModulesTest do
       end
       """,
       """
-      ExScript.Modules.Hi = {
+      const Hi = {
           bai() {
               return 'bai';
           }
@@ -305,17 +304,16 @@ defmodule ExScript.Compiler.ModulesTest do
       end
       """,
       """
-      ExScript.Modules.HelloEarth = {
+      const HelloEarth = {
           hi() {
               return 'hi';
           }
       };
-      ExScript.Modules.HelloMars = {
+      const HelloMars = {
           hi() {
               return HelloEarth.hi();
           }
       };
-      const {HelloEarth} = ExScript.Modules;
       """
     )
   end
@@ -370,7 +368,7 @@ defmodule ExScript.Compiler.ModulesTest do
       end
       """,
       """
-      ExScript.Modules.Foo = {
+      const Foo = {
           "foo?"() {
               return 'foo';
           }
@@ -397,7 +395,64 @@ defmodule ExScript.Compiler.ModulesTest do
       """,
       """
       Foo['bar!']('a');
-      const {Foo} = ExScript.Modules;
+      """
+    )
+  end
+
+  test "compiles module attributes" do
+    ExScript.TestHelper.compare(
+      """
+      defmodule Foo do
+        @bar "baz"
+
+        def foo, do: @bar
+      end
+      """,
+      """
+      const Foo = {
+          bar: 'baz',
+          foo() {
+              return this.bar;
+          }
+      };
+      """
+    )
+  end
+
+  test "compiles complex module attributes" do
+    ExScript.TestHelper.compare(
+      """
+      defmodule Foo do
+        @bar Foo.bar()
+      end
+      """,
+      """
+      const Foo = { bar: Foo.bar() };
+      """
+    )
+  end
+
+  test "determines the correct order of modules" do
+    ExScript.TestHelper.compare(
+      """
+      defmodule A do
+        import B
+      end
+      defmodule B do
+        @ref C
+      end
+      defmodule C do
+        def foo, do: "bar"
+      end
+      """,
+      """
+      const B = { ref: C };
+      const C = {
+          foo() {
+              return 'bar';
+          }
+      };
+      const A = { ...B };
       """
     )
   end

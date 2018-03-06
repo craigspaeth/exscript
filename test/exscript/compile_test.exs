@@ -64,8 +64,8 @@ defmodule ExScript.Compile.CompileTest do
       end
       """,
       """
-      ExScript.Modules.Foo = {
-          ...ExScript.Modules.Bar,
+      const Foo = {
+          ...Bar,
           foo() {
               return 1;
           }

@@ -17,9 +17,8 @@ defmodule ExScript.Compile do
 
     """
     (() => {
-      #{runtime()};
+      #{runtime}
       #{app_code};
-      window.ExScript = ExScript;
     })()
     """
   end
@@ -31,14 +30,13 @@ defmodule ExScript.Compile do
     |> Enum.join()
     |> Code.string_to_quoted!()
     |> ExScript.Compile.to_js!()
-    |> String.split("\n")
-    |> Enum.drop(-1)
-    |> Enum.join("\n")
     Enum.join([
-      File.read!(@cwd <> "/lib/exscript/stdlib/pre.js"),
+      "class Tup extends Array {};\n",
       stdlib,
-      File.read!(@cwd <> "/lib/exscript/stdlib/post.js"),
-      "const {#{Enum.join stdlib_module_names(), ", "}} = ExScript.Modules;"
+      "\n",
+      Enum.join(for mod_name <- stdlib_module_names() do
+        "const #{mod_name} = ExScriptStdlib#{mod_name};\n"
+      end)
     ])
   end
 
@@ -49,7 +47,10 @@ defmodule ExScript.Compile do
       &Path.basename(&1)
       |> String.split(".")
       |> List.first()
-      |> (fn (s) -> if s in ["js", "io"], do: String.upcase(s), else: String.capitalize(s) end).()
+      |> String.split("_")
+      |> Enum.map(fn (s) -> String.capitalize s end)
+      |> Enum.join("")
+      |> (fn (s) -> if s in ["Js", "Io"], do: String.upcase(s), else: s end).()
     )
   end
 
@@ -72,7 +73,54 @@ defmodule ExScript.Compile do
         transform_block_statement({:__block__, [], [ast]})
       end
 
-    body = if is_nil(module_namespaces()), do: body, else: body ++ [module_namespaces()]
+    # Single statement
+    body = if length(ExScript.State.module_defs()) == 0 do
+      body
+
+    # Full program
+    else
+
+      # Order modules correctly to support compile-time reference
+      body = for mod_name <- ExScript.State.modules() do
+        Enum.find body, fn (js_ast) ->
+          js_ast_mod_name = List.first(js_ast.declarations).id.name
+          js_ast_mod_name == mod_name
+        end
+      end |> Enum.reject(&is_nil(&1))
+
+      # Attach modules to `window`
+      body ++ [
+          %{
+          type: "AssignmentExpression",
+          operator: "=",
+          left: %{
+            object: %{name: "window", type: "Identifier"},
+            property: %{name: "ExScript", type: "Identifier"},
+            type: "MemberExpression"
+          },
+          right: %{
+            type: "ObjectExpression",
+            properties: [
+              %{
+                type: "SpreadElement",
+                argument: %{
+                  object: %{name: "window", type: "Identifier"},
+                  property: %{name: "ExScript", type: "Identifier"},
+                  type: "MemberExpression"
+                }
+              }
+            ] ++ for mod_name <- ExScript.State.modules() do
+              %{
+                type: "Property",
+                shorthand: true,
+                key: %{name: mod_name, type: "Identifier"},
+                value: %{name: mod_name, type: "Identifier"}
+              }
+            end
+          }
+        }
+      ]
+    end
 
     ExScript.State.clear()
     %{type: "Program", body: body}

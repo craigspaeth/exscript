@@ -19,25 +19,30 @@ defmodule ExScript.Transformers.Modules do
         [statement_or_statements]
       end
 
+    namespace = Enum.join(namespaces, "")
     imports = for {:import, _, [{_, _, namespaces}]} <- statements do
       Enum.join(namespaces, "")
     end
+    attributes = for {:@, _, [{var_name, _, [val]}]} <- statements, var_name != :moduledoc do
+      {var_name, val}
+    end
     methods = Enum.filter(statements, fn {key, _, _} -> key == :def or key == :defp end)
-    namespace = Enum.join(namespaces, "")
-
 
     imports_ast = for mod_name <- imports do
+      ExScript.State.track_module_ref(mod_name)
       %{
         argument: %{
-          object: %{
-            object: %{name: "ExScript", type: "Identifier"},
-            property: %{name: "Modules", type: "Identifier"},
-            type: "MemberExpression"
-          },
-          property: %{name: mod_name, type: "Identifier"},
-          type: "MemberExpression"
+          name: mod_name,
+          type: "Identifier"
         },
         type: "SpreadElement"
+      }
+    end
+    attributes_ast = for {var_name, val} <- attributes do
+      %{
+        type: "Property",
+        key: %{type: "Identifier", name: var_name},
+        value: Compile.transform!(val)
       }
     end
     methods_ast = for method <- methods do
@@ -51,46 +56,38 @@ defmodule ExScript.Transformers.Modules do
       %{
         type: "Property",
         method: true,
-        shorthand: false,
-        computed: false,
         key: %{type: "Identifier", name: method_name},
         value: Common.function_expression(:obj, args, return_val)
       }
     end
+    ExScript.State.track_module_def(namespace)
     %{
-      type: "AssignmentExpression",
-      operator: "=",
-      left: %{
-        type: "MemberExpression",
-        object: %{
-          type: "MemberExpression",
-          object: %{type:
-           "Identifier", name: "ExScript"},
-          property: %{type: "Identifier", name: "Modules"}
-        },
-        property: %{type: "Identifier", name: namespace}
-      },
-      right: %{
-        type: "ObjectExpression",
-        properties: imports_ast ++ methods_ast
-      }
+      declarations: [
+        %{
+          id: %{
+            name: namespace,
+            type: "Identifier"
+          },
+          init: %{
+            properties: imports_ast ++ attributes_ast ++ methods_ast,
+            type: "ObjectExpression"
+          },
+          type: "VariableDeclarator"
+        }
+      ],
+      kind: "const",
+      type: "VariableDeclaration"
     }
   end
 
   def transform_module_reference({_, _, namespaces}) do
     mod_name = Enum.join(namespaces)
-    ExScript.State.hoist_module_namespace(mod_name)
+    ExScript.State.track_module_ref(mod_name)
 
     %{
       type: "Identifier",
       name: mod_name
     }
-  end
-
-  def transform_module_attribute({_, _, [{attr_type, _, _}]}) do
-    case attr_type do
-      :moduledoc -> nil
-    end
   end
 
   def transform_local_function({fn_name, _, [arg]}) when fn_name == :await  do
@@ -111,39 +108,15 @@ defmodule ExScript.Transformers.Modules do
     }
   end
 
-  def module_namespaces do
-    mod_names = ExScript.State.module_namespaces()
-
-    if length(mod_names) > 0 do
-      %{
-        declarations: [
-          %{
-            id: %{
-              properties:
-                for name <- mod_names do
-                  %{
-                    key: %{name: name, type: "Identifier"},
-                    kind: "init",
-                    shorthand: true,
-                    type: "Property",
-                    value: %{name: name, type: "Identifier"}
-                  }
-                end,
-              type: "ObjectPattern"
-            },
-            init: %{
-              object: %{name: "ExScript", type: "Identifier"},
-              property: %{name: "Modules", type: "Identifier"},
-              type: "MemberExpression"
-            },
-            type: "VariableDeclarator"
-          }
-        ],
-        kind: "const",
-        type: "VariableDeclaration"
-      }
-    else
-      nil
+  def transform_module_attribute({_, _, [{attr_name, _, _}]}) do
+    case attr_name do
+      :moduledoc -> nil
+      _ ->
+        %{
+          object: %{type: "ThisExpression"},
+          property: %{name: attr_name, type: "Identifier"},
+          type: "MemberExpression"
+        }
     end
   end
 end
