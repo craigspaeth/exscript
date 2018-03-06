@@ -1,67 +1,106 @@
-//
-// A JS library used to implement Elixir/Erlang standard library or language
-// features that don't translate very cleanly 1:1.
-//
-const ExScript = { Modules: { ExScript: { Stdlib: {} } } }
-const root = typeof window === 'undefined' ? global : window
-
-// Namespace for user-land modules
-ExScript.Modules = {}
-ExScript.Modules.JS = {
-  window: () => root
-}
-ExScript.Modules.IO = {
-  puts: root.console.log,
-  inspect: root.console.debug
-}
-
-// Data Types
-ExScript.Types = {}
-ExScript.Types.Tuple = class Tuple extends Array {}
-
-// Standard library
-
-// Atom
-ExScript.Modules.Atom = {}
-ExScript.Modules.Atom.to_string = atom => String(atom).slice(7, -1)
-
-// Map
-ExScript.Modules.Map = {}
-ExScript.Modules.Map.put = (map, key, val) => {
-  map[key] = val
-  return map
-}
-
-// List
-ExScript.Modules.List = {}
-ExScript.Modules.List.first = list => list[0]
-
-// Keyword
-ExScript.Modules.Keyword = {}
-ExScript.Modules.Keyword['keyword?'] = list =>
-  list && list[0] instanceof ExScript.Types.Tuple
-
-// Kernel
-ExScript.Modules.Kernel = {}
-ExScript.Modules.Kernel.is_atom = val => typeof val === 'symbol'
-ExScript.Modules.Kernel.is_binary = val => typeof val === 'string'
-ExScript.Modules.Kernel.is_bitstring = val => typeof val === 'string'
-ExScript.Modules.Kernel.is_boolean = val => typeof val === 'boolean'
-ExScript.Modules.Kernel.is_float = val =>
-  typeof val === 'number' && parseInt(val) === val
-ExScript.Modules.Kernel.is_function = val => typeof val === 'function'
-ExScript.Modules.Kernel.is_integer = val =>
-  typeof val === 'number' && !ExScript.is_float(val)
-ExScript.Modules.Kernel.is_list = val => val instanceof Array
-ExScript.Modules.Kernel.is_map = val => typeof val === 'object'
-ExScript.Modules.Kernel.is_nil = val => typeof val === null
-ExScript.Modules.Kernel.is_number = val => typeof val === 'number'
-ExScript.Modules.Kernel.is_pid = val => typeof val === 'boolean'
-ExScript.Modules.Kernel.is_port = val => typeof val === 'boolean'
-ExScript.Modules.Kernel.is_reference = val => typeof val === 'boolean'
-ExScript.Modules.Kernel.is_tuple = val => val instanceof ExScript.Types.Tuple
-ExScript.Modules.Kernel.length = val => val.length
-ExScript.Modules.ExScriptStdlibEnum = {
+(() => {
+  class Tup extends Array {};
+const ExScriptStdlibTuple = {};
+const ExScriptStdlibString = {
+    split(_string, _pattern) {
+        return _string.split(_pattern);;
+    },
+    to_atom(_str) {
+        return Symbol(_str);;
+    },
+    replace(_subject, _pattern, _replacement) {
+        return _subject.replace(_pattern, _replacement);;
+    },
+    capitalize(_str) {
+        return _str.charAt(0).toUpperCase() + _str.slice(1);;
+    }
+};
+const ExScriptStdlibMap = {
+    merge(map1, map2) {
+        return Object.assign({}, map1, map2);;
+    },
+    put(map, key, val) {
+        let k;
+        k = Atom.to_string(key);
+        return Object.assign({}, map, { [k]: val });;
+    }
+};
+const ExScriptStdlibList = {
+    first(_list) {
+        return _list[0];;
+    }
+};
+const ExScriptStdlibKeyword = {
+    merge(keywords1, keywords2) {
+        let both;
+        both = keywords1.concat(keywords2);
+        return both.map(([k, _]) => {
+            return new Tup(k, Keyword.get(both, k));
+        });
+    },
+    "has_key?"(keywords, key) {
+        let bools;
+        bools = keywords.map(([k, _]) => {
+            return Atom.to_string(k) === Atom.to_string(key);
+        });
+        return Enum['member?'](bools, true);
+    },
+    get(keywords, key) {
+        return Enum.reduce(Enum.reverse(keywords), ([k, v], acc) => {
+            return Atom.to_string(k) === Atom.to_string(key) ? (() => {
+                return v;
+            })() : (() => {
+                return acc;
+            })();
+        });
+    },
+    "keyword?"(keywords) {
+        return keywords && Kernel.length(keywords) > 0 ? (() => {
+            let first, _;
+            [first, ..._] = keywords;
+            return Kernel.is_tuple(first) ? (() => {
+                let k, v;
+                [k, v] = first;
+                return Kernel.is_atom(k);
+            })() : false;
+        })() : false;
+    }
+};
+const ExScriptStdlibKernel = {
+    length(val) {
+        return val.length;;
+    },
+    is_tuple(val) {
+        return val instanceof Tup;;
+    },
+    is_atom(val) {
+        return typeof val === 'symbol';;
+    },
+    is_bitstring(val) {
+        return typeof val === 'string';;
+    },
+    is_list(val) {
+        return val instanceof Array;;
+    },
+    is_map(val) {
+        return typeof val === 'object';;
+    }
+};
+const ExScriptStdlibJS = {
+    root() {
+        return typeof global !== 'undefined' && global || typeof window !== 'undefined' && window || {};;
+    }
+};
+const ExScriptStdlibIO = {
+    puts(str) {
+        return console.log(str);;
+    },
+    inspect(str) {
+        return console.debug(str);;
+    }
+};
+const ExScriptStdlibExScriptAwait = {};
+const ExScriptStdlibEnum = {
     map(e, fun) {
         return e.map(i => {
             return fun(i);
@@ -78,22 +117,57 @@ ExScript.Modules.ExScriptStdlibEnum = {
     },
     at(e, index) {
         return e[index];;
-    }
-};for (let key in ExScript.Modules) {
-  if (key.match(/^ExScriptStdlib/)) {
-    const modName = key.replace('ExScriptStdlib', '')
-    ExScript.Modules[modName] = ExScript.Modules[key]
-  }
-}
-ExScript.Modules.App = {
-    init() {
-        return this.render_name('Harry');
     },
-    render_name(name) {
-        return ViewClient.render(View, { name: name });
+    "member?"(enumerable, element) {
+        return this.reduce(enumerable, false, (i, acc) => {
+            return acc || i === element;
+        });
+    },
+    with_index(enumerable) {
+        let __i = 0;
+        return enumerable.map(i => {
+            let index;
+            __i++;
+            index = __i - 1;;
+            return new Tup(i, index);
+        });
+    },
+    reverse(enumerable) {
+        return enumerable.slice().reverse();;
     }
 };
-ExScript.Modules.ViewClient = {
+const ExScriptStdlibAtom = {
+    to_string(atom) {
+        return JS.root().String(atom).slice(7, -1);;
+    }
+};
+(window.ExScript = {
+    ...window.ExScript,
+    ExScriptStdlibTuple,
+    ExScriptStdlibString,
+    ExScriptStdlibMap,
+    ExScriptStdlibList,
+    ExScriptStdlibKeyword,
+    ExScriptStdlibKernel,
+    ExScriptStdlibJS,
+    ExScriptStdlibIO,
+    ExScriptStdlibExScriptAwait,
+    ExScriptStdlibEnum,
+    ExScriptStdlibAtom
+})
+const Atom = ExScriptStdlibAtom;
+const Enum = ExScriptStdlibEnum;
+const ExScriptAwait = ExScriptStdlibExScriptAwait;
+const IO = ExScriptStdlibIO;
+const JS = ExScriptStdlibJS;
+const Kernel = ExScriptStdlibKernel;
+const Keyword = ExScriptStdlibKeyword;
+const List = ExScriptStdlibList;
+const Map = ExScriptStdlibMap;
+const String = ExScriptStdlibString;
+const Tuple = ExScriptStdlibTuple;
+
+  const ViewClient = {
     to_react_el(dsl_el) {
         let tag_label, children, attrs, _, childs;
         [tag_label, ...children] = dsl_el;
@@ -128,7 +202,7 @@ ExScript.Modules.ViewClient = {
         return JS.window()['ReactDOM'].render(el, JS.window()['document']['body']);
     }
 };
-ExScript.Modules.View = {
+const View = {
     onclick(e) {
         return IO.inspect(e);
     },
@@ -155,7 +229,7 @@ ExScript.Modules.View = {
                 ],
                 [
                     Symbol('a'),
-                    [new ExScript.Types.Tuple(Symbol('href'), 'hi')],
+                    [new Tup(Symbol('href'), 'hi')],
                     [
                         Symbol('p'),
                         'a'
@@ -167,11 +241,25 @@ ExScript.Modules.View = {
                 ],
                 [
                     Symbol('button'),
-                    [new ExScript.Types.Tuple(Symbol('onClick'), this.onclick)],
+                    [new Tup(Symbol('onClick'), this.onclick)],
                     'Hello World'
                 ]
             ]
         ];
     }
 };
-const {ViewClient, View, Keyword, List, Enum, Map, Atom, Kernel, JS, IO} = ExScript.Modules;
+const App = {
+    init() {
+        return this.render_name('Harry');
+    },
+    render_name(name) {
+        return ViewClient.render(View, { name: name });
+    }
+};
+(window.ExScript = {
+    ...window.ExScript,
+    ViewClient,
+    View,
+    App
+});
+})()

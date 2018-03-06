@@ -24,7 +24,7 @@ defmodule ExScript.Compile.ScenariosTest do
       end
       """,
       """
-      ExScript.Modules.GriffinViewClient = {
+      GriffinViewClient = {
           inline_styles(view, tag_label) {
               let _, refs;
               [_, ...refs] = String.split(Kernel.to_string(tag_label), '@');

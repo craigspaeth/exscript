@@ -8,7 +8,7 @@ defmodule ExScript.Common do
   @cwd File.cwd!()
 
   def module_function_call(mod_name, fn_name, args) when mod_name == "JS" and fn_name == :embed do
-    ExScript.State.hoist_module_namespace(mod_name)
+    ExScript.State.track_module_ref(mod_name)
     [code] = args
     cmd = "echo \"#{code}\" | #{@cwd}/node_modules/.bin/acorn"
     js_ast = Poison.decode!(:os.cmd(String.to_charlist(cmd)))
@@ -17,7 +17,7 @@ defmodule ExScript.Common do
   end
 
   def module_function_call(mod_name, fn_name, args) do
-    ExScript.State.hoist_module_namespace(mod_name)
+    ExScript.State.track_module_ref(mod_name)
     %{
       type: "CallExpression",
       arguments: Compile.transform_list!(args),

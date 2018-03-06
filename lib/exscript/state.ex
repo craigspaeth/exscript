@@ -8,9 +8,10 @@ defmodule ExScript.State do
   """
 
   @init_state %{
-    modules: [],
+    module_refs: [],
+    module_defs: [],
     variable_blocks: [[]],
-    block_is_async: false
+    block_is_async: false,
   }
   def init do
     Agent.start_link(
@@ -19,17 +20,32 @@ defmodule ExScript.State do
     )
   end
 
-  def hoist_module_namespace(mod_name) do
+  def track_module_ref(mod_name) do
     Agent.update(__MODULE__, fn state ->
-      modules = (state.modules ++ [to_string(mod_name)])
+      module_refs = (state.module_refs ++ [to_string(mod_name)])
       |> Enum.uniq()
       |> Enum.reject(&Enum.member? ExScript.Compile.stdlib_module_names, &1)
-      %{state | modules: modules}
+      %{state | module_refs: module_refs}
     end)
   end
 
-  def module_namespaces do
-    Agent.get(__MODULE__, fn state -> state.modules end)
+  def track_module_def(mod_name) do
+    Agent.update(__MODULE__, fn state ->
+      module_defs = (state.module_defs ++ [to_string(mod_name)])
+      |> Enum.uniq()
+      |> Enum.reject(&Enum.member? ExScript.Compile.stdlib_module_names, &1)
+      %{state | module_defs: module_defs}
+    end)
+  end
+
+  def modules do
+    Agent.get(__MODULE__, fn state ->
+      Enum.uniq(state.module_refs ++ Enum.reverse(state.module_defs))
+    end)
+  end
+
+  def module_defs do
+    Agent.get(__MODULE__, fn state -> state.module_defs end)
   end
 
   def start_block do
