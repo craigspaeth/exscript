@@ -9,7 +9,12 @@ defmodule ExScript.TestHelper do
       |> Code.string_to_quoted!()
       |> ExScript.Compile.to_js!()
 
-    assert js_out <> "\n" == js_in
+    try do
+      assert String.contains? js_out <> "\n", js_in
+    rescue
+      _ ->
+        assert js_in == js_out
+    end
   end
 
   def compare_eval(ex_str) do

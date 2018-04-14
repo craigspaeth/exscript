@@ -72,20 +72,6 @@ defmodule ExScript.Compiler.TypesTest do
     )
   end
 
-  test "compiles maps with function keys" do
-    ExScript.TestHelper.compare(
-      """
-      %{foo: "bar", baz: "qux"}
-      """,
-      """
-      ({
-          foo: 'bar',
-          baz: 'qux'
-      });
-      """
-    )
-  end
-
   test "compiles nil" do
     ExScript.TestHelper.compare(
       """
@@ -107,6 +93,36 @@ defmodule ExScript.Compiler.TypesTest do
       let a, map;
       a = Symbol('a');
       map = { [a]: 'b' };
+      """
+    )
+  end
+
+  @tag :skip
+  test "compiles dot access to maps" do
+    ExScript.TestHelper.compare(
+      """
+      a = %{foo: fn -> "hi" end}
+      a.foo.()
+      """,
+      """
+      let a;
+      a = {
+          foo: () => {
+              return 'hi';
+          }
+      };
+      a.foo();
+      """
+    )
+  end
+
+  test "compiles nested dot access to map" do
+    ExScript.TestHelper.compare(
+      """
+      Griffin.JSON.parse!("foo").data
+      """,
+      """
+      GriffinJSON['parse!']('foo').data;
       """
     )
   end

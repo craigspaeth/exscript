@@ -1,6 +1,6 @@
-defmodule ExScript.Compile.AwaitTest do
+defmodule ExScript.Compile.UniversalTest do
   use ExUnit.Case
-  import ExScript.Await
+  import ExScript.Universal
 
   test "awaits a task" do
     two = await Task.async fn ->

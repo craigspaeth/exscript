@@ -1,6 +1,7 @@
 defmodule Mix.Tasks.Parse do
   @moduledoc """
   Parses Javascript code piped into stdin and outputs an Elixir map of the ESTree AST
+  e.g. echo "1 + 1" | mix parse
   """
 
   use Mix.Task

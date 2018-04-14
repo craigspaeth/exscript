@@ -38,6 +38,18 @@ defmodule ExScript.Compile.CompileTest do
     )
   end
 
+  @tag :cur
+  test "warns against dynamic embedded code" do
+    err = try do
+      ExScript.Compile.to_js! Code.string_to_quoted! """
+        JS.embed("debugger \#{a}")
+      """
+    rescue
+      str -> str
+    end
+    assert err.message == "Cant embed string interpolation"
+  end
+
   test "compiles await calls into async/await functions" do
     ExScript.TestHelper.compare(
       """

@@ -31,7 +31,7 @@ defmodule ExScript.Transformers.Types do
     }
   end
 
-  def transform_map({_, _, args} = ast) do
+  def transform_map({_, _, args}) do
     %{
       type: "ObjectExpression",
       properties:
@@ -55,11 +55,12 @@ defmodule ExScript.Transformers.Types do
     }
   end
 
+  # ???
   def transform_property_access({
         {_, _, [_, action]},
         _,
         [owner, prop]
-      })
+      } )
       when action == :get do
     %{
       type: "MemberExpression",
@@ -69,6 +70,7 @@ defmodule ExScript.Transformers.Types do
     }
   end
 
+  # Kernel function call e.g. is_map()
   def transform_property_access({
         {_, _, [Kernel, key]},
         _,
@@ -76,25 +78,18 @@ defmodule ExScript.Transformers.Types do
       }) do
     %{
       type: "CallExpression",
+      arguments: Compile.transform_list!(args),
       callee: %{
         type: "MemberExpression",
         object: %{type: "Identifier", name: "ExScript"},
         property: %{type: "Identifier", name: key}
-      },
-      arguments: Enum.map(args, &Compile.transform!(&1))
+      }
     }
   end
 
+  # Property access e.g. map.foo
   def transform_property_access({
-        {_, _, [{_, _, [mod_name]}, key]},
-        _,
-        args
-      }) do
-    Common.module_function_call(mod_name, key, args)
-  end
-
-  def transform_property_access({
-        {_, _, [{_, _, _} = parent_ast, key]},
+        {_, _, [parent_ast, key]},
         _,
         args
       })
@@ -109,19 +104,20 @@ defmodule ExScript.Transformers.Types do
     }
   end
 
+  # Function property call e.g. map.foo("bar")
   def transform_property_access({
-        {_, _, [{_, _, _} = parent_ast, key]},
+        {_, _, [parent_ast, key]},
         _,
         args
       }) do
-
     %{
       type: "CallExpression",
-      arguments: Enum.map(args, &Compile.transform!(&1)),
+      arguments: Compile.transform_list!(args),
       callee: Common.callee(Compile.transform!(parent_ast), key)
     }
   end
 
+  # ???
   def transform_property_access({
         {_, _, [{callee, _, _}]},
         _,
@@ -129,7 +125,7 @@ defmodule ExScript.Transformers.Types do
       }) do
     %{
       type: "CallExpression",
-      arguments: Enum.map(args, &Compile.transform!(&1)),
+      arguments: Compile.transform_list!(args),
       callee: %{
         type: "Identifier",
         name: callee

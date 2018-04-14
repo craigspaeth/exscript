@@ -17,26 +17,30 @@ defmodule ExScript.Compile do
 
     """
     (() => {
-      #{runtime}
+      #{runtime()}
       #{app_code};
     })()
     """
   end
 
   def runtime do
-    stdlib = "#{@cwd}/lib/exscript/stdlib/*.ex"
-    |> Path.wildcard()
-    |> Enum.map(&File.read! &1)
-    |> Enum.join()
-    |> Code.string_to_quoted!()
-    |> ExScript.Compile.to_js!()
+    stdlib =
+      "#{@cwd}/lib/exscript/stdlib/*.ex"
+      |> Path.wildcard()
+      |> Enum.map(&File.read!(&1))
+      |> Enum.join()
+      |> Code.string_to_quoted!()
+      |> ExScript.Compile.to_js!()
+
     Enum.join([
       "class Tup extends Array {};\n",
       stdlib,
       "\n",
-      Enum.join(for mod_name <- stdlib_module_names() do
-        "const #{mod_name} = ExScriptStdlib#{mod_name};\n"
-      end)
+      Enum.join(
+        for mod_name <- stdlib_module_names() do
+          "const #{mod_name} = ExScriptStdlib#{mod_name};\n"
+        end
+      )
     ])
   end
 
@@ -44,13 +48,13 @@ defmodule ExScript.Compile do
     "#{@cwd}/lib/exscript/stdlib/*.ex"
     |> Path.wildcard()
     |> Enum.map(
-      &Path.basename(&1)
-      |> String.split(".")
-      |> List.first()
-      |> String.split("_")
-      |> Enum.map(fn (s) -> String.capitalize s end)
-      |> Enum.join("")
-      |> (fn (s) -> if s in ["Js", "Io"], do: String.upcase(s), else: s end).()
+      &(Path.basename(&1)
+        |> String.split(".")
+        |> List.first()
+        |> String.split("_")
+        |> Enum.map(fn s -> String.capitalize(s) end)
+        |> Enum.join("")
+        |> (fn s -> if s in ["Js", "Io"], do: String.upcase(s), else: s end).())
     )
   end
 
@@ -74,53 +78,76 @@ defmodule ExScript.Compile do
       end
 
     # Single statement
-    body = if length(ExScript.State.module_defs()) == 0 do
-      body
+    body =
+      if length(ExScript.State.module_defs()) == 0 do
+        body
 
-    # Full program
-    else
+        # Full program
+      else
+        # Order modules correctly to support compile-time reference
+        body =
+          for mod_name <- ExScript.State.modules() do
+            Enum.find(body, fn js_ast ->
+              js_ast_mod_name = List.first(js_ast.declarations).id.name
+              js_ast_mod_name == mod_name
+            end)
+          end
+          |> Enum.reject(&is_nil(&1))
 
-      # Order modules correctly to support compile-time reference
-      body = for mod_name <- ExScript.State.modules() do
-        Enum.find body, fn (js_ast) ->
-          js_ast_mod_name = List.first(js_ast.declarations).id.name
-          js_ast_mod_name == mod_name
-        end
-      end |> Enum.reject(&is_nil(&1))
-
-      # Attach modules to `window`
-      body ++ [
-          %{
-          type: "AssignmentExpression",
-          operator: "=",
-          left: %{
-            object: %{name: "window", type: "Identifier"},
-            property: %{name: "ExScript", type: "Identifier"},
-            type: "MemberExpression"
-          },
-          right: %{
-            type: "ObjectExpression",
-            properties: [
-              %{
-                type: "SpreadElement",
-                argument: %{
-                  object: %{name: "window", type: "Identifier"},
-                  property: %{name: "ExScript", type: "Identifier"},
-                  type: "MemberExpression"
-                }
+        # Attach modules to `window`
+        body ++
+          [
+            %{
+              type: "AssignmentExpression",
+              operator: "=",
+              left: %{
+                object: %{name: "window", type: "Identifier"},
+                property: %{name: "ExScript", type: "Identifier"},
+                type: "MemberExpression"
+              },
+              right: %{
+                type: "ObjectExpression",
+                properties:
+                  [
+                    %{
+                      type: "SpreadElement",
+                      argument: %{
+                        object: %{name: "window", type: "Identifier"},
+                        property: %{name: "ExScript", type: "Identifier"},
+                        type: "MemberExpression"
+                      }
+                    }
+                  ] ++
+                    for mod_name <- ExScript.State.modules() do
+                      %{
+                        type: "Property",
+                        key: %{name: mod_name, type: "Identifier"},
+                        value: %{
+                          alternate: %{name: mod_name, type: "Identifier"},
+                          consequent: %{raw: "null", type: "Literal", value: nil},
+                          test: %{
+                            left: %{
+                              argument: %{name: mod_name, type: "Identifier"},
+                              operator: "typeof",
+                              prefix: true,
+                              type: "UnaryExpression"
+                            },
+                            operator: "===",
+                            right: %{
+                              raw: "\"undefined\"",
+                              type: "Literal",
+                              value: "undefined"
+                            },
+                            type: "BinaryExpression"
+                          },
+                          type: "ConditionalExpression"
+                        }
+                      }
+                    end
               }
-            ] ++ for mod_name <- ExScript.State.modules() do
-              %{
-                type: "Property",
-                shorthand: true,
-                key: %{name: mod_name, type: "Identifier"},
-                value: %{name: mod_name, type: "Identifier"}
-              }
-            end
-          }
-        }
-      ]
-    end
+            }
+          ]
+      end
 
     ExScript.State.clear()
     %{type: "Program", body: body}
@@ -131,6 +158,7 @@ defmodule ExScript.Compile do
       is_tuple(ast) ->
         try do
           {token, _, _} = ast
+
           cond do
             is_tuple(token) ->
               {_, _, parent} = token

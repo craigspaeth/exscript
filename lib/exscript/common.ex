@@ -10,6 +10,7 @@ defmodule ExScript.Common do
   def module_function_call(mod_name, fn_name, args) when mod_name == "JS" and fn_name == :embed do
     ExScript.State.track_module_ref(mod_name)
     [code] = args
+    if !is_bitstring(code), do: raise "Cant embed string interpolation"
     cmd = "echo \"#{code}\" | #{@cwd}/node_modules/.bin/acorn"
     js_ast = Poison.decode!(:os.cmd(String.to_charlist(cmd)))
     [first] = js_ast["body"]
