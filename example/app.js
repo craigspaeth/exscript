@@ -87,7 +87,7 @@ const ExScriptStdlibKernel = {
     }
 };
 const ExScriptStdlibJS = {
-    root() {
+    global() {
         return typeof global !== 'undefined' && global || typeof window !== 'undefined' && window || {};;
     }
 };
@@ -99,7 +99,11 @@ const ExScriptStdlibIO = {
         return console.debug(str);;
     }
 };
-const ExScriptStdlibExScriptAwait = {};
+const ExScriptStdlibExScriptUniversal = {
+    env() {
+        return Symbol('browser');
+    }
+};
 const ExScriptStdlibEnum = {
     map(e, fun) {
         return e.map(i => {
@@ -143,21 +147,21 @@ const ExScriptStdlibAtom = {
 };
 (window.ExScript = {
     ...window.ExScript,
-    ExScriptStdlibTuple,
-    ExScriptStdlibString,
-    ExScriptStdlibMap,
-    ExScriptStdlibList,
-    ExScriptStdlibKeyword,
-    ExScriptStdlibKernel,
-    ExScriptStdlibJS,
-    ExScriptStdlibIO,
-    ExScriptStdlibExScriptAwait,
-    ExScriptStdlibEnum,
-    ExScriptStdlibAtom
+    ExScriptStdlibTuple: typeof ExScriptStdlibTuple === 'undefined' ? null : ExScriptStdlibTuple,
+    ExScriptStdlibString: typeof ExScriptStdlibString === 'undefined' ? null : ExScriptStdlibString,
+    ExScriptStdlibMap: typeof ExScriptStdlibMap === 'undefined' ? null : ExScriptStdlibMap,
+    ExScriptStdlibList: typeof ExScriptStdlibList === 'undefined' ? null : ExScriptStdlibList,
+    ExScriptStdlibKeyword: typeof ExScriptStdlibKeyword === 'undefined' ? null : ExScriptStdlibKeyword,
+    ExScriptStdlibKernel: typeof ExScriptStdlibKernel === 'undefined' ? null : ExScriptStdlibKernel,
+    ExScriptStdlibJS: typeof ExScriptStdlibJS === 'undefined' ? null : ExScriptStdlibJS,
+    ExScriptStdlibIO: typeof ExScriptStdlibIO === 'undefined' ? null : ExScriptStdlibIO,
+    ExScriptStdlibExScriptUniversal: typeof ExScriptStdlibExScriptUniversal === 'undefined' ? null : ExScriptStdlibExScriptUniversal,
+    ExScriptStdlibEnum: typeof ExScriptStdlibEnum === 'undefined' ? null : ExScriptStdlibEnum,
+    ExScriptStdlibAtom: typeof ExScriptStdlibAtom === 'undefined' ? null : ExScriptStdlibAtom
 })
 const Atom = ExScriptStdlibAtom;
 const Enum = ExScriptStdlibEnum;
-const ExScriptAwait = ExScriptStdlibExScriptAwait;
+const ExScriptUniversal = ExScriptStdlibExScriptUniversal;
 const IO = ExScriptStdlibIO;
 const JS = ExScriptStdlibJS;
 const Kernel = ExScriptStdlibKernel;
@@ -258,8 +262,8 @@ const App = {
 };
 (window.ExScript = {
     ...window.ExScript,
-    ViewClient,
-    View,
-    App
+    ViewClient: typeof ViewClient === 'undefined' ? null : ViewClient,
+    View: typeof View === 'undefined' ? null : View,
+    App: typeof App === 'undefined' ? null : App
 });
 })()

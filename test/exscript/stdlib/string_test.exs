@@ -13,7 +13,6 @@ defmodule ExScript.Stdlib.StringTest do
     """)
   end
 
-  @tag :cur
   test "implements String.to_atom/2" do
     ExScript.TestHelper.compare_eval("""
       String.to_atom "a"

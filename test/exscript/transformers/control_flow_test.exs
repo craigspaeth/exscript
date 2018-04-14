@@ -13,6 +13,18 @@ defmodule ExScript.Compiler.ControlFlowTest do
     )
   end
 
+  test "compiles if without else expressions" do
+    ExScript.TestHelper.compare(
+      """
+      a = if true, do: "hi"
+      """,
+      """
+      let a;
+      a = true ? 'hi' : null;
+      """
+    )
+  end
+
   test "compiles if expressions with blocks" do
     ExScript.TestHelper.compare(
       """

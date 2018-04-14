@@ -6,7 +6,9 @@ defmodule ExScript.Transformers.ControlFlow do
   alias ExScript.Compile, as: Compile
   alias ExScript.Common, as: Common
 
-  def transform_if({_, _, [test, [{_, consequent}, {_, alternate}]]}) do
+  def transform_if({_, _, [test, [{_, consequent} | alt]]}) do
+    [{_, alternate}] = if length(alt) > 0, do: alt, else: [{nil, nil}]
+
     expr = fn body ->
       if is_tuple(body) do
         Common.iife(Common.return_block(body).body)

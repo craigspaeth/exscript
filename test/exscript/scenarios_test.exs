@@ -43,4 +43,8 @@ defmodule ExScript.Compile.ScenariosTest do
       """
     )
   end
+
+  test "fo" do
+    IO.puts(Foo.a())
+  end
 end
