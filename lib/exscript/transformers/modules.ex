@@ -20,47 +20,67 @@ defmodule ExScript.Transformers.Modules do
       end
 
     namespace = Enum.join(namespaces, "")
-    imports = for {:import, _, [{_, _, namespaces}]} <- statements do
-      Enum.join(namespaces, "")
-    end
-    attributes = for {:@, _, [{var_name, _, [val]}]} <- statements, var_name != :moduledoc do
-      {var_name, val}
-    end
+    ExScript.State.track_module_def(namespace)
+
+    {imports_ast, attributes_ast} =
+      ExScript.State.collect_compile_time_module_refs(fn ->
+        imports =
+          for {:import, _, [{_, _, namespaces}]} <- statements do
+            Enum.join(namespaces, "")
+          end
+
+        imports_ast =
+          for mod_name <- imports do
+            ExScript.State.track_module_ref(mod_name)
+
+            %{
+              argument: %{
+                name: mod_name,
+                type: "Identifier"
+              },
+              type: "SpreadElement"
+            }
+          end
+
+        attributes =
+          for {:@, _, [{var_name, _, [val]}]} <- statements, var_name != :moduledoc do
+            {var_name, val}
+          end
+
+        attributes_ast =
+          for {var_name, val} <- attributes do
+            %{
+              type: "Property",
+              key: %{type: "Identifier", name: var_name},
+              value: Compile.transform!(val)
+            }
+          end
+
+        {imports_ast, attributes_ast}
+      end)
+
     methods = Enum.filter(statements, fn {key, _, _} -> key == :def or key == :defp end)
 
-    imports_ast = for mod_name <- imports do
-      ExScript.State.track_module_ref(mod_name)
-      %{
-        argument: %{
-          name: mod_name,
-          type: "Identifier"
-        },
-        type: "SpreadElement"
-      }
-    end
-    attributes_ast = for {var_name, val} <- attributes do
-      %{
-        type: "Property",
-        key: %{type: "Identifier", name: var_name},
-        value: Compile.transform!(val)
-      }
-    end
-    methods_ast = for method <- methods do
-      {_, _, body} = method
-      [{method_name, _, args}, [{_, return_val}]] = body
-      method_name = if Common.is_punctuated(method_name) do
-        "\"#{method_name}\""
-      else
-        method_name
+    methods_ast =
+      for method <- methods do
+        {_, _, body} = method
+        [{method_name, _, args}, [{_, return_val}]] = body
+
+        method_name =
+          if Common.is_punctuated(method_name) do
+            "\"#{method_name}\""
+          else
+            method_name
+          end
+
+        %{
+          type: "Property",
+          method: true,
+          key: %{type: "Identifier", name: method_name},
+          value: Common.function_expression(:obj, args, return_val)
+        }
       end
-      %{
-        type: "Property",
-        method: true,
-        key: %{type: "Identifier", name: method_name},
-        value: Common.function_expression(:obj, args, return_val)
-      }
-    end
-    ExScript.State.track_module_def(namespace)
+
     %{
       declarations: [
         %{
@@ -90,11 +110,12 @@ defmodule ExScript.Transformers.Modules do
     }
   end
 
-  def transform_local_function({fn_name, _, [arg]}) when fn_name == :await  do
+  def transform_local_function({fn_name, _, args}) when fn_name == :await do
     ExScript.State.block_is_async()
+
     %{
       type: "AwaitExpression",
-      argument: Compile.transform!(arg)
+      argument: Compile.transform!(List.first(args))
     }
   end
 
@@ -102,15 +123,21 @@ defmodule ExScript.Transformers.Modules do
     %{
       type: "CallExpression",
       arguments: Compile.transform_list!(args),
-      callee: Common.callee(%{
-        type: "ThisExpression"
-      }, fn_name)
+      callee:
+        Common.callee(
+          %{
+            type: "ThisExpression"
+          },
+          fn_name
+        )
     }
   end
 
   def transform_module_attribute({_, _, [{attr_name, _, _}]}) do
     case attr_name do
-      :moduledoc -> nil
+      :moduledoc ->
+        nil
+
       _ ->
         %{
           object: %{type: "ThisExpression"},

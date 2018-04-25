@@ -101,7 +101,15 @@ defmodule ExScript.Compile do
               type: "AssignmentExpression",
               operator: "=",
               left: %{
-                object: %{name: "window", type: "Identifier"},
+                object: %{
+                  arguments: [],
+                  callee: %{
+                    object: %{name: "ExScriptStdlibJS", type: "Identifier"},
+                    property: %{name: "global", type: "Identifier"},
+                    type: "MemberExpression"
+                  },
+                  type: "CallExpression"
+                },
                 property: %{name: "ExScript", type: "Identifier"},
                 type: "MemberExpression"
               },
@@ -112,7 +120,15 @@ defmodule ExScript.Compile do
                     %{
                       type: "SpreadElement",
                       argument: %{
-                        object: %{name: "window", type: "Identifier"},
+                        object: %{
+                          arguments: [],
+                          callee: %{
+                            object: %{name: "ExScriptStdlibJS", type: "Identifier"},
+                            property: %{name: "global", type: "Identifier"},
+                            type: "MemberExpression"
+                          },
+                          type: "CallExpression"
+                        },
                         property: %{name: "ExScript", type: "Identifier"},
                         type: "MemberExpression"
                       }
@@ -237,7 +253,7 @@ defmodule ExScript.Compile do
       token == := ->
         transform_assignment(ast)
 
-      token == :not ->
+      token == :not || token == :! ->
         transform_not_operator(ast)
 
       token in [:+, :*, :/, :-, :==, :<>, :and, :or, :||, :&&, :!=, :>] ->
@@ -248,12 +264,6 @@ defmodule ExScript.Compile do
 
       token == :<<>> ->
         transform_string_interpolation(ast)
-
-      callee[:import] == Kernel or
-          Kernel.__info__(:functions)
-          |> Keyword.keys()
-          |> Enum.member?(token) ->
-        transform_kernel_function(ast)
 
       token == :fn ->
         transform_anonymous_function(ast)
@@ -272,6 +282,12 @@ defmodule ExScript.Compile do
 
       token == :& ->
         transform_function_capturing(ast)
+
+      callee[:import] == Kernel or
+          (Kernel.__info__(:functions) ++ Kernel.__info__(:macros))
+          |> Keyword.keys()
+          |> Enum.member?(token) ->
+        transform_kernel_function(ast)
 
       is_list(args) ->
         transform_local_function(ast)

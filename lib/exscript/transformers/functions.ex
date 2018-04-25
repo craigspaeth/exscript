@@ -56,7 +56,6 @@ defmodule ExScript.Transformers.Functions do
         args
       })
       when is_nil(namespaces) do
-
     %{
       type: "CallExpression",
       arguments: Enum.map(args, &Compile.transform!(&1)),
@@ -75,16 +74,21 @@ defmodule ExScript.Transformers.Functions do
     }
   end
 
-  def transform_function_capturing({_, _, [callee]}) do
-    case callee do
-      c when is_number(c) ->
-        %{
-          type: "Identifier",
-          name: "arg#{callee}"
-        }
+  # An argument capture like &foo(&1, &2)
+  def transform_function_capturing({_, _, [callee]}) when is_number(callee) do
+    %{
+      type: "Identifier",
+      name: "arg#{callee}"
+    }
+  end
 
-      {:/, _, [{fn_name, _, _}, _]} ->
-        %{
+  # A reference to a module function like &foo/1
+  def transform_function_capturing({_, _, [{:/, _, [{fn_name, _, _}, _]}]}) do
+    %{
+      type: "CallExpression",
+      arguments: [%{type: "ThisExpression"}],
+      callee: %{
+        object: %{
           type: "MemberExpression",
           object: %{
             type: "ThisExpression"
@@ -93,20 +97,27 @@ defmodule ExScript.Transformers.Functions do
             type: "Identifier",
             name: fn_name
           }
-        }
+        },
+        property: %{name: "bind", type: "Identifier"},
+        type: "MemberExpression"
+      }
+    }
+  end
 
-      {{_, _, _}, _, _} ->
-        args = args_from_shortcuts(callee)
+  # Shorthand function expression like &(1 + 1)
+  def transform_function_capturing({_, _, [{{_, _, _}, _, _} = callee]}) do
+    args = args_from_shortcuts(callee)
 
-        if length(args) == 0 do
-          transform_external_function_call(callee)[:callee]
-        else
-          Common.function_expression(:arrow, args, callee)
-        end
-
-      _ ->
-        Common.function_expression(:arrow, args_from_shortcuts(callee), callee)
+    if length(args) == 0 do
+      transform_external_function_call(callee)[:callee]
+    else
+      Common.function_expression(:arrow, args, callee)
     end
+  end
+
+  # ???
+  def transform_function_capturing({_, _, [callee]}) do
+    Common.function_expression(:arrow, args_from_shortcuts(callee), callee)
   end
 
   defp args_from_shortcuts(callee) do

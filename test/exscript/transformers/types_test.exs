@@ -127,6 +127,17 @@ defmodule ExScript.Compiler.TypesTest do
     )
   end
 
+  test "compiles map function call" do
+    ExScript.TestHelper.compare(
+      """
+      e.preventDefault.()
+      """,
+      """
+      e.preventDefault();
+      """
+    )
+  end
+
   @tag :skip
   test "compiles pids" do
   end

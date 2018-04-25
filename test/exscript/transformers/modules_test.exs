@@ -240,7 +240,7 @@ defmodule ExScript.Compiler.ModulesTest do
     )
   end
 
-  test "compiles local module function references" do
+  test "compiles local module function references bound to this" do
     ExScript.TestHelper.compare(
       """
       defmodule Hello.World do
@@ -253,7 +253,7 @@ defmodule ExScript.Compiler.ModulesTest do
           hi() {
               return [
                   Symbol('a'),
-                  this.bai
+                  this.bai.bind(this)
               ];
           },
           bai() {

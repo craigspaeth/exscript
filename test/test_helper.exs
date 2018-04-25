@@ -10,7 +10,7 @@ defmodule ExScript.TestHelper do
       |> ExScript.Compile.to_js!()
 
     try do
-      assert String.contains? js_out <> "\n", js_in
+      assert String.contains?(js_out <> "\n", js_in)
     rescue
       _ ->
         assert js_in == js_out
@@ -26,14 +26,19 @@ defmodule ExScript.TestHelper do
       |> Code.string_to_quoted!()
       |> ExScript.Compile.to_js!()
 
-    code = "(async () => { #{runtime} #{js_code} process.stdout.write(JSON.stringify(await out())) })()"
+    code =
+      "(async () => { #{runtime} #{js_code} process.stdout.write(JSON.stringify(await out())) })()"
+
     {json, _} = System.cmd("node", ["-e", code])
-    # IO.puts code
+    # IO.puts(code)
+
     case Poison.Parser.parse(json, keys: :atoms) do
-      {:ok, js_res} -> assert ex_res == js_res
+      {:ok, js_res} ->
+        assert ex_res == js_res
+
       {:error, _} ->
-        IO.puts json
+        IO.puts(json)
         raise "Failure"
-      end
+    end
   end
 end

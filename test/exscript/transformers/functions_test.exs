@@ -79,7 +79,28 @@ defmodule ExScript.Compiler.FunctionsTest do
     )
   end
 
-  test "compiles punctuated function calls on a property" do
+  test "compiles blocks as statments" do
+    ExScript.TestHelper.compare(
+      """
+      defmodule Foo do
+        def bar do
+          IO.puts(a)
+          IO.inspect(b)
+        end
+      end
+      """,
+      """
+      const Foo = {
+          bar() {
+              IO.puts(a);
+              return IO.inspect(b);
+          }
+      };
+      """
+    )
+  end
+
+  test "compiles function calls as statements" do
     ExScript.TestHelper.compare(
       """
       a.foo!("bar")
@@ -361,5 +382,15 @@ defmodule ExScript.Compiler.FunctionsTest do
       };
       """
     )
+  end
+
+  test "compiles default params" do
+    ExScript.TestHelper.compare("defmodule Foo, do: def foo(a \\\\ 1), do: a", """
+    const Foo = {
+        foo(a = 1) {
+            return a;
+        }
+    };
+    """)
   end
 end
