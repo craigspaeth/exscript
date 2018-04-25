@@ -10,22 +10,31 @@ defmodule ExScript.Common do
   def module_function_call(mod_name, fn_name, args) when mod_name == "JS" and fn_name == :embed do
     ExScript.State.track_module_ref(mod_name)
     [code] = args
-    if !is_bitstring(code), do: raise "Cant embed string interpolation"
+    if !is_bitstring(code), do: raise("Cant embed string interpolation")
+
     cmd = "echo \"#{code}\" | #{@cwd}/node_modules/.bin/acorn"
-    js_ast = Poison.decode!(:os.cmd(String.to_charlist(cmd)))
+    stdout = :os.cmd(String.to_charlist(cmd))
+    if String.contains?(to_string(stdout), "Unexpected token"), do: raise("Invalid embedded JS")
+
+    js_ast = Poison.decode!(stdout)
     [first] = js_ast["body"]
-    first
+    first["expression"] || first
   end
 
   def module_function_call(mod_name, fn_name, args) do
     ExScript.State.track_module_ref(mod_name)
+
     %{
       type: "CallExpression",
       arguments: Compile.transform_list!(args),
-      callee: callee(%{
-        type: "Identifier",
-        name: mod_name
-      }, fn_name)
+      callee:
+        callee(
+          %{
+            type: "Identifier",
+            name: mod_name
+          },
+          fn_name
+        )
     }
   end
 
@@ -38,7 +47,14 @@ defmodule ExScript.Common do
               :__block__ ->
                 [return_line | fn_lines] = Enum.reverse(body)
 
-                body = Enum.map(Enum.reverse(fn_lines), &Compile.transform!(&1))
+                body =
+                  Enum.map(Enum.reverse(fn_lines), fn line ->
+                    %{
+                      expression: Compile.transform!(line),
+                      type: "ExpressionStatement"
+                    }
+                  end)
+
                 ret = dont_return_assignment(return_line)
                 body ++ ret
 
@@ -88,7 +104,6 @@ defmodule ExScript.Common do
     }
   end
 
-
   def with_block_state(body_generator, ignore_names \\ []) do
     ExScript.State.start_block()
     body = body_generator.()
@@ -104,7 +119,8 @@ defmodule ExScript.Common do
           type: "VariableDeclarator"
         }
       end)
-    async = ExScript.State.block_async?
+
+    async = ExScript.State.block_async?()
 
     ExScript.State.end_block()
 
@@ -114,6 +130,7 @@ defmodule ExScript.Common do
         kind: "let",
         type: "VariableDeclaration"
       }
+
       %{body: [variables] ++ body, async: async}
     else
       %{body: body, async: async}
@@ -122,7 +139,7 @@ defmodule ExScript.Common do
 
   def is_punctuated(fn_name) do
     String.contains?(Atom.to_string(fn_name), "?") or
-    String.contains?(Atom.to_string(fn_name), "!")
+      String.contains?(Atom.to_string(fn_name), "!")
   end
 
   def callee(parent_ast, fn_name) do
@@ -130,24 +147,25 @@ defmodule ExScript.Common do
       type: "MemberExpression",
       computed: is_punctuated(fn_name),
       object: parent_ast,
-      property: if is_punctuated(fn_name) do
-        %{
-          raw: "\"#{fn_name}\"",
-          type: "Literal",
-          value: Atom.to_string(fn_name)
-        }
-      else
-        %{
-          type: "Identifier",
-          name: fn_name
-        }
-      end
+      property:
+        if is_punctuated(fn_name) do
+          %{
+            raw: "\"#{fn_name}\"",
+            type: "Literal",
+            value: Atom.to_string(fn_name)
+          }
+        else
+          %{
+            type: "Identifier",
+            name: fn_name
+          }
+        end
     }
   end
 
   defp var_name_from_arg(arg) do
     case arg do
-      {_, _, [{key_name, {val_name, _, _}}]} ->
+      {_, _, [{key_name, {_, _, _}}]} ->
         key_name
 
       {left, right} ->
@@ -163,6 +181,13 @@ defmodule ExScript.Common do
 
   defp transform_arg(arg) do
     case arg do
+      {:\\, _, [{key_name, _, _}, default_val]} ->
+        %{
+          left: %{name: key_name, type: "Identifier"},
+          right: Compile.transform!(default_val),
+          type: "AssignmentPattern"
+        }
+
       {_, _, [{key_name, {val_name, _, _}}]} ->
         %{
           type: "ObjectPattern",

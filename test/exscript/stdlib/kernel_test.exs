@@ -29,8 +29,19 @@ defmodule ExScript.Stdlib.KernelTest do
     ExScript.TestHelper.compare_eval("""
       Kernel.is_map %{}
     """)
+
     ExScript.TestHelper.compare_eval("""
       Kernel.is_map 1
+    """)
+  end
+
+  test "is_nil" do
+    ExScript.TestHelper.compare_eval("""
+    Kernel.is_nil(nil)
+    """)
+
+    ExScript.TestHelper.compare_eval("""
+    Kernel.is_nil(nil)
     """)
   end
 end

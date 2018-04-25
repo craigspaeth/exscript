@@ -57,6 +57,21 @@ defmodule ExScript.Compiler.OperatorsTest do
     )
   end
 
+  test "compiles pipeline with awaits" do
+    ExScript.TestHelper.compare(
+      """
+      a = "a"
+      |> foo.()
+      |> await()
+      |> bar.()
+      """,
+      """
+      let a;
+      a = bar(await foo('a'));
+      """
+    )
+  end
+
   test "compiles pipelines with local function calls" do
     ExScript.TestHelper.compare(
       """
@@ -247,6 +262,20 @@ defmodule ExScript.Compiler.OperatorsTest do
           3,
           4
       ]);
+      """
+    )
+  end
+
+  test "compiles ! operators" do
+    ExScript.TestHelper.compare(
+      """
+      a = false
+      !a
+      """,
+      """
+      let a;
+      a = false;
+      !a;
       """
     )
   end

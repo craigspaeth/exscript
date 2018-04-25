@@ -9,9 +9,11 @@ defmodule ExScript.State do
 
   @init_state %{
     module_refs: [],
+    compile_time_module_refs: [],
+    run_time_module_refs: [],
     module_defs: [],
     variable_blocks: [[]],
-    block_is_async: false,
+    block_is_async: false
   }
   def init do
     Agent.start_link(
@@ -20,27 +22,52 @@ defmodule ExScript.State do
     )
   end
 
+  def collect_compile_time_module_refs(fun) do
+    Agent.update(__MODULE__, fn state ->
+      %{state | run_time_module_refs: state.module_refs, module_refs: []}
+    end)
+
+    ret = fun.()
+
+    Agent.update(__MODULE__, fn state ->
+      %{
+        state
+        | compile_time_module_refs: state.compile_time_module_refs ++ state.module_refs,
+          module_refs: []
+      }
+    end)
+
+    ret
+  end
+
   def track_module_ref(mod_name) do
     Agent.update(__MODULE__, fn state ->
-      module_refs = (state.module_refs ++ [to_string(mod_name)])
-      |> Enum.uniq()
-      |> Enum.reject(&Enum.member? ExScript.Compile.stdlib_module_names, &1)
+      module_refs =
+        (state.module_refs ++ [to_string(mod_name)])
+        |> Enum.uniq()
+        |> Enum.reject(&Enum.member?(ExScript.Compile.stdlib_module_names(), &1))
+
       %{state | module_refs: module_refs}
     end)
   end
 
   def track_module_def(mod_name) do
     Agent.update(__MODULE__, fn state ->
-      module_defs = (state.module_defs ++ [to_string(mod_name)])
-      |> Enum.uniq()
-      |> Enum.reject(&Enum.member? ExScript.Compile.stdlib_module_names, &1)
+      module_defs =
+        (state.module_defs ++ [to_string(mod_name)])
+        |> Enum.uniq()
+        |> Enum.reject(&Enum.member?(ExScript.Compile.stdlib_module_names(), &1))
+
       %{state | module_defs: module_defs}
     end)
   end
 
   def modules do
     Agent.get(__MODULE__, fn state ->
-      Enum.uniq(state.module_refs ++ Enum.reverse(state.module_defs))
+      Enum.uniq(
+        Enum.reverse(state.compile_time_module_refs) ++
+          Enum.reverse(state.module_defs) ++ state.run_time_module_refs
+      )
     end)
   end
 
@@ -53,7 +80,7 @@ defmodule ExScript.State do
       %{
         state
         | variable_blocks: state.variable_blocks ++ [[]],
-        block_is_async: false
+          block_is_async: false
       }
     end)
   end
@@ -61,8 +88,8 @@ defmodule ExScript.State do
   def end_block do
     Agent.update(__MODULE__, fn state ->
       %{
-        state |
-        variable_blocks: Enum.drop(state.variable_blocks, -1)
+        state
+        | variable_blocks: Enum.drop(state.variable_blocks, -1)
       }
     end)
   end

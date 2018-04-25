@@ -38,6 +38,7 @@ defmodule ExScript.Transformers.Types do
         for {key, val} <- args do
           if is_tuple(key) do
             {name, _, _} = key
+
             %{
               type: "Property",
               computed: true,
@@ -60,7 +61,7 @@ defmodule ExScript.Transformers.Types do
         {_, _, [_, action]},
         _,
         [owner, prop]
-      } )
+      })
       when action == :get do
     %{
       type: "MemberExpression",
@@ -117,19 +118,18 @@ defmodule ExScript.Transformers.Types do
     }
   end
 
-  # ???
-  def transform_property_access({
-        {_, _, [{callee, _, _}]},
-        _,
-        args
-      }) do
+  # Dot function call e.g. map.foo.()
+  def transform_property_access(
+        {
+          {_, _, [callee]},
+          _,
+          args
+        } = ast
+      ) do
     %{
       type: "CallExpression",
       arguments: Compile.transform_list!(args),
-      callee: %{
-        type: "Identifier",
-        name: callee
-      }
+      callee: Compile.transform!(callee)
     }
   end
 end
